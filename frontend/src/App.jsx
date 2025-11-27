@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import './App.css'
 import sadLogo from './assets/logos/sad.png'
 import sadExtractorLogo from './assets/logos/sad-extractor.png'
@@ -149,6 +149,8 @@ function LoginPage({ onLogin, initialDarkMode }) {
 
 function AppHeader({ activePage, user, onNavigate, onLogout, onToggleSidebar, darkMode, onToggleDarkMode }) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+  const menuRef = useRef(null)
+  const toggleRef = useRef(null)
 
   const handleAvatarClick = () => {
     setIsUserMenuOpen((prev) => !prev)
@@ -162,6 +164,28 @@ function AppHeader({ activePage, user, onNavigate, onLogout, onToggleSidebar, da
   const handleToggleDarkMode = () => {
     onToggleDarkMode()
   }
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        isUserMenuOpen &&
+        menuRef.current &&
+        !menuRef.current.contains(event.target) &&
+        toggleRef.current &&
+        !toggleRef.current.contains(event.target)
+      ) {
+        setIsUserMenuOpen(false)
+      }
+    }
+
+    if (isUserMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isUserMenuOpen])
 
   return (
     <header className="top-bar">
@@ -204,6 +228,7 @@ function AppHeader({ activePage, user, onNavigate, onLogout, onToggleSidebar, da
             </span>
             <div className="user-avatar-wrapper">
               <button
+                ref={toggleRef}
                 type="button"
                 className="user-avatar"
                 onClick={handleAvatarClick}
@@ -212,7 +237,7 @@ function AppHeader({ activePage, user, onNavigate, onLogout, onToggleSidebar, da
                 <span className="avatar-chevron">▼</span>
               </button>
               {isUserMenuOpen && (
-                <div className="user-menu">
+                <div ref={menuRef} className="user-menu">
                   <div className="user-menu-item dark-mode-toggle-item">
                     <span className="dark-mode-label">Modo Escuro</span>
                     <button
@@ -242,13 +267,47 @@ function AppHeader({ activePage, user, onNavigate, onLogout, onToggleSidebar, da
 }
 
 function UploadPage() {
+  const [selectedFiles, setSelectedFiles] = useState([])
+  const fileInputRef = useRef(null)
+
+  const handleFileSelect = (event) => {
+    const files = Array.from(event.target.files)
+    setSelectedFiles(files)
+    // TODO: Integrar com backend - enviar arquivos
+    // uploadFiles(files)
+  }
+
+  const handleDrop = (event) => {
+    event.preventDefault()
+    const files = Array.from(event.dataTransfer.files)
+    setSelectedFiles(files)
+    // TODO: Integrar com backend - enviar arquivos
+    // uploadFiles(files)
+  }
+
+  const handleDragOver = (event) => {
+    event.preventDefault()
+  }
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleUploadSubmit = () => {
+    if (selectedFiles.length > 0) {
+      // TODO: Integrar com backend - enviar arquivos
+      // uploadFiles(selectedFiles)
+      console.log('Arquivos selecionados:', selectedFiles)
+    }
+  }
+
   return (
     <main className="main-layout main-config">
       <section className="config-container">
         <header className="config-header">
           <h1>Upload dos documentos</h1>
           <p>
-            Faça Upload de arquivos PDF para extrair automaticamente os dados
+            Faça upload de arquivos PDF para extrair automaticamente os dados
             dos laudos desejados.
           </p>
         </header>
@@ -269,17 +328,45 @@ function UploadPage() {
             </div>
           </div>
 
-          <div className="upload-area">
+          <div
+            className="upload-area"
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".pdf,.docx"
+              onChange={handleFileSelect}
+              style={{ display: 'none' }}
+            />
             <div className="upload-icon">⬆</div>
             <p>
               Arraste os arquivos aqui ou{' '}
-              <button type="button" className="link-button upload-link">
+              <button
+                type="button"
+                className="link-button upload-link"
+                onClick={handleUploadClick}
+              >
                 clique para selecionar
               </button>
             </p>
             <span className="upload-subtitle">
               Formatos suportados: PDF, DOCx
             </span>
+            {selectedFiles.length > 0 && (
+              <div className="upload-files-list">
+                <p>{selectedFiles.length} arquivo(s) selecionado(s)</p>
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={handleUploadSubmit}
+                >
+                  Enviar Arquivos
+                </button>
+              </div>
+            )}
           </div>
         </section>
       </section>
@@ -288,6 +375,48 @@ function UploadPage() {
 }
 
 function EditDataPage() {
+  const [selectedRows, setSelectedRows] = useState([])
+  const [laudos, setLaudos] = useState([
+    { id: 1, nome: 'Laudo_001.pdf', extraidos: 12, total: 30, confiabilidade: 40, acao: 'Revisar Campos' },
+    { id: 2, nome: 'Laudo_002.pdf', extraidos: 30, total: 30, confiabilidade: 100, acao: 'Prosseguir' },
+    { id: 3, nome: 'Laudo_003.pdf', extraidos: 21, total: 30, confiabilidade: 70, acao: 'Prosseguir' },
+    { id: 4, nome: 'Laudo_004.pdf', extraidos: 3, total: 30, confiabilidade: 10, acao: 'Descartado', descartado: true },
+  ])
+
+  const handleSelectAll = () => {
+    if (selectedRows.length === laudos.length) {
+      setSelectedRows([])
+    } else {
+      setSelectedRows(laudos.map((l) => l.id))
+    }
+  }
+
+  const handleSelectRow = (id) => {
+    setSelectedRows((prev) =>
+      prev.includes(id) ? prev.filter((rowId) => rowId !== id) : [...prev, id]
+    )
+  }
+
+  const handleDeleteAll = () => {
+    // TODO: Integrar com backend - excluir laudos selecionados
+    // deleteLaudos(selectedRows)
+    setLaudos((prev) => prev.filter((l) => !selectedRows.includes(l.id)))
+    setSelectedRows([])
+  }
+
+  const handleValidate = () => {
+    // TODO: Integrar com backend - validar dados selecionados
+    // validateData(selectedRows)
+    console.log('Validar dados:', selectedRows)
+  }
+
+  const getConfidenceClass = (confiabilidade) => {
+    if (confiabilidade >= 80) return 'confidence-high'
+    if (confiabilidade >= 50) return 'confidence-medium'
+    if (confiabilidade >= 20) return 'confidence-low'
+    return 'confidence-very-low'
+  }
+
   return (
     <main className="main-layout main-config">
       <section className="config-container">
@@ -312,6 +441,25 @@ function EditDataPage() {
             </div>
           </div>
 
+          <div className="edit-table-controls">
+            <button
+              type="button"
+              className="link-button"
+              onClick={handleSelectAll}
+            >
+              Selecionar tudo
+            </button>
+            {selectedRows.length > 0 && (
+              <button
+                type="button"
+                className="link-button delete-all-btn"
+                onClick={handleDeleteAll}
+              >
+                Excluir tudo
+              </button>
+            )}
+          </div>
+
           <div className="table-wrapper edit-table-wrapper">
             <table className="users-table">
               <thead>
@@ -325,54 +473,47 @@ function EditDataPage() {
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td>1</td>
-                  <td>Laudo_xxx.pdf</td>
-                  <td>12/30</td>
-                  <td>40%</td>
-                  <td>
-                    <span className="confidence-bar confidence-low" />
-                  </td>
-                  <td>Revisar Campos</td>
-                </tr>
-                <tr>
-                  <td>2</td>
-                  <td>Laudo_xxx.pdf</td>
-                  <td>30/30</td>
-                  <td>100%</td>
-                  <td>
-                    <span className="confidence-bar confidence-high" />
-                  </td>
-                  <td>Prosseguir</td>
-                </tr>
-                <tr>
-                  <td>3</td>
-                  <td>Laudo_xxx.pdf</td>
-                  <td>21/30</td>
-                  <td>70%</td>
-                  <td>
-                    <span className="confidence-bar confidence-medium" />
-                  </td>
-                  <td>Prosseguir</td>
-                </tr>
-                <tr className="row-danger">
-                  <td>4</td>
-                  <td>Laudo_xxx.pdf</td>
-                  <td>03/30</td>
-                  <td>10%</td>
-                  <td>
-                    <span className="confidence-bar confidence-very-low" />
-                  </td>
-                  <td>Descartado</td>
-                </tr>
+                {laudos.map((laudo) => (
+                  <tr
+                    key={laudo.id}
+                    className={laudo.descartado ? 'row-danger' : ''}
+                  >
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedRows.includes(laudo.id)}
+                        onChange={() => handleSelectRow(laudo.id)}
+                      />
+                      {laudo.id}
+                    </td>
+                    <td>{laudo.nome}</td>
+                    <td>
+                      {laudo.extraidos}/{laudo.total}
+                    </td>
+                    <td>{laudo.confiabilidade}%</td>
+                    <td>
+                      <span
+                        className={`confidence-bar ${getConfidenceClass(laudo.confiabilidade)}`}
+                      />
+                    </td>
+                    <td>{laudo.acao}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
-          </div>
+      </div>
 
           <div className="edit-footer-actions">
-            <button className="primary-button validate-button">
+            <span className="selected-count">
+              {selectedRows.length} laudo(s) selecionado(s)
+            </span>
+            <button
+              type="button"
+              className="primary-button validate-button"
+              onClick={handleValidate}
+            >
               Validar Dados
-            </button>
+        </button>
           </div>
         </section>
       </section>
@@ -381,6 +522,104 @@ function EditDataPage() {
 }
 
 function HistoryReportsPage() {
+  const [filters, setFilters] = useState({
+    numeroDocumento: '',
+    endereco: '',
+    coordenadas: '',
+    dataExtracao: '',
+  })
+  const [selectedLaudos, setSelectedLaudos] = useState([])
+  const [exportFormat, setExportFormat] = useState('')
+  const [laudos, setLaudos] = useState([
+    {
+      id: 1,
+      numero: 'LA 000 SAD/001',
+      endereco: 'Rua das Flores, 123',
+      coordenadaS: "0°00'00.0\"S",
+      coordenadaW: "0°00'00.0\"W",
+      estadoConservacao: 'Bom',
+      valor: 'R$ 250.000,00',
+      dataExtracao: '15/07/2025',
+    },
+    {
+      id: 2,
+      numero: 'LA 000 SAD/002',
+      endereco: 'Av. Principal, 456',
+      coordenadaS: "0°00'00.0\"S",
+      coordenadaW: "0°00'00.0\"W",
+      estadoConservacao: 'Regular',
+      valor: 'R$ 180.000,00',
+      dataExtracao: '16/07/2025',
+    },
+    {
+      id: 3,
+      numero: 'LA 000 SAD/003',
+      endereco: 'Rua Central, 789',
+      coordenadaS: "0°00'00.0\"S",
+      coordenadaW: "0°00'00.0\"W",
+      estadoConservacao: 'Bom',
+      valor: 'R$ 320.000,00',
+      dataExtracao: '17/07/2025',
+    },
+    {
+      id: 4,
+      numero: 'LA 000 SAD/004',
+      endereco: 'Praça da República, 321',
+      coordenadaS: "0°00'00.0\"S",
+      coordenadaW: "0°00'00.0\"W",
+      estadoConservacao: 'Ruim',
+      valor: 'R$ 150.000,00',
+      dataExtracao: '18/07/2025',
+    },
+  ])
+
+  const handleFilterChange = (field, value) => {
+    setFilters((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleSearch = () => {
+    // TODO: Integrar com backend - buscar laudos com filtros
+    // searchLaudos(filters)
+    console.log('Buscar laudos com filtros:', filters)
+  }
+
+  const handleSelectAll = () => {
+    if (selectedLaudos.length === laudos.length) {
+      setSelectedLaudos([])
+    } else {
+      setSelectedLaudos(laudos.map((l) => l.id))
+    }
+  }
+
+  const handleSelectLaudo = (id) => {
+    setSelectedLaudos((prev) =>
+      prev.includes(id) ? prev.filter((laudoId) => laudoId !== id) : [...prev, id]
+    )
+  }
+
+  const handleDeleteAll = () => {
+    // TODO: Integrar com backend - excluir laudos selecionados
+    // deleteLaudos(selectedLaudos)
+    setLaudos((prev) => prev.filter((l) => !selectedLaudos.includes(l.id)))
+    setSelectedLaudos([])
+  }
+
+  const handleExport = () => {
+    if (selectedLaudos.length === 0 || !exportFormat) {
+      alert('Selecione pelo menos um laudo e um formato de exportação')
+      return
+    }
+    // TODO: Integrar com backend - exportar laudos
+    // exportLaudos(selectedLaudos, exportFormat)
+    console.log('Exportar laudos:', selectedLaudos, exportFormat)
+  }
+
+  const getStatusColor = (estado) => {
+    if (estado === 'Bom') return 'status-good'
+    if (estado === 'Regular') return 'status-medium'
+    return 'status-low'
+  }
+
   return (
     <main className="main-layout main-config">
       <section className="config-container">
@@ -396,22 +635,48 @@ function HistoryReportsPage() {
           <div className="filters-grid">
             <div className="form-group">
               <label>Nº do documento</label>
-              <input className="field-input rectangular" placeholder="Pesquisar" />
+              <input
+                className="field-input rectangular"
+                placeholder="Pesquisar"
+                value={filters.numeroDocumento}
+                onChange={(e) => handleFilterChange('numeroDocumento', e.target.value)}
+              />
             </div>
             <div className="form-group">
               <label>Endereço</label>
-              <input className="field-input rectangular" placeholder="Pesquisar" />
+              <input
+                className="field-input rectangular"
+                placeholder="Pesquisar"
+                value={filters.endereco}
+                onChange={(e) => handleFilterChange('endereco', e.target.value)}
+              />
             </div>
             <div className="form-group">
               <label>Coordenadas</label>
-              <input className="field-input rectangular" placeholder="Pesquisar" />
+              <input
+                className="field-input rectangular"
+                placeholder="Pesquisar"
+                value={filters.coordenadas}
+                onChange={(e) => handleFilterChange('coordenadas', e.target.value)}
+              />
             </div>
             <div className="form-group">
               <label>Data da Extração</label>
-              <input className="field-input rectangular" placeholder="00/00/0000" />
-            </div>
+              <input
+                type="date"
+                className="field-input rectangular"
+                value={filters.dataExtracao}
+                onChange={(e) => handleFilterChange('dataExtracao', e.target.value)}
+              />
+      </div>
             <div className="form-group form-group-button">
-              <button className="primary-button">Pesquisar</button>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={handleSearch}
+              >
+                Pesquisar
+        </button>
             </div>
           </div>
         </section>
@@ -420,7 +685,26 @@ function HistoryReportsPage() {
           <header className="table-header">
             <h2>Visualização dos dados que foram extraídos</h2>
           </header>
-          <div className="table-wrapper">
+          <div className="history-table-controls">
+            <button
+              type="button"
+              className="link-button"
+              onClick={handleSelectAll}
+            >
+              Selecionar tudo
+            </button>
+            {selectedLaudos.length > 0 && (
+              <button
+                type="button"
+                className="link-button delete-all-btn"
+                onClick={handleDeleteAll}
+              >
+                Excluir tudo
+              </button>
+            )}
+          </div>
+
+          <div className="table-wrapper no-scroll">
             <table className="users-table">
               <thead>
                 <tr>
@@ -434,52 +718,53 @@ function HistoryReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td>LA 000 SAD/XXX</td>
-                  <td>Rua XXXX XXXXX</td>
-                  <td>0º0'00,0"S</td>
-                  <td>0º0'00,0"W</td>
-                  <td>
-                    <span className="status-pill status-good" />
-                  </td>
-                  <td>R$ x.xxx.xxx,xx</td>
-                  <td>XX/XX/2025</td>
-                </tr>
-                <tr>
-                  <td>LA 000 SAD/XXX</td>
-                  <td>Rua XXXX XXXXX</td>
-                  <td>0º0'00,0"S</td>
-                  <td>0º0'00,0"W</td>
-                  <td>
-                    <span className="status-pill status-medium" />
-                  </td>
-                  <td>R$ x.xxx.xxx,xx</td>
-                  <td>XX/XX/2025</td>
-                </tr>
-                <tr>
-                  <td>LA 000 SAD/XXX</td>
-                  <td>Rua XXXX XXXXX</td>
-                  <td>0º0'00,0"S</td>
-                  <td>0º0'00,0"W</td>
-                  <td>
-                    <span className="status-pill status-low" />
-                  </td>
-                  <td>R$ x.xxx.xxx,xx</td>
-                  <td>XX/XX/2025</td>
-                </tr>
+                {laudos.map((laudo) => (
+                  <tr key={laudo.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedLaudos.includes(laudo.id)}
+                        onChange={() => handleSelectLaudo(laudo.id)}
+                      />
+                      <span className="laudo-link">{laudo.numero} 👁</span>
+                    </td>
+                    <td>{laudo.endereco}</td>
+                    <td>{laudo.coordenadaS}</td>
+                    <td>{laudo.coordenadaW}</td>
+                    <td>
+                      <span className={`status-pill ${getStatusColor(laudo.estadoConservacao)}`} />
+                    </td>
+                    <td>{laudo.valor}</td>
+                    <td>{laudo.dataExtracao}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
 
           <div className="history-footer">
             <div className="history-footer-left">
-              <span>3 laudos selecionados</span>
+              <span>{selectedLaudos.length} laudo(s) selecionado(s)</span>
             </div>
             <div className="history-footer-right">
-              <select className="field-input rectangular history-select">
-                <option>Selecionar formato</option>
+              <span>Opções para exportação dos laudos:</span>
+              <select
+                className="field-input rectangular history-select"
+                value={exportFormat}
+                onChange={(e) => setExportFormat(e.target.value)}
+              >
+                <option value="">Selecionar formato</option>
+                <option value="pdf">PDF</option>
+                <option value="excel">Excel</option>
+                <option value="csv">CSV</option>
               </select>
-              <button className="primary-button">Baixar laudos</button>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={handleExport}
+              >
+                Baixar laudos
+              </button>
             </div>
           </div>
         </section>
@@ -489,6 +774,42 @@ function HistoryReportsPage() {
 }
 
 function HistoryUsersPage() {
+  const [userLogs] = useState([
+    {
+      id: 1,
+      usuario: 'User_01',
+      acao: 'Editou laudo',
+      nomeLaudo: 'LA 000 SAD/001',
+      dataModificacao: '18/07/2025',
+    },
+    {
+      id: 2,
+      usuario: 'User_02',
+      acao: 'Extraiu novo laudo',
+      nomeLaudo: 'LA 000 SAD/002',
+      dataModificacao: '17/07/2025',
+    },
+    {
+      id: 3,
+      usuario: 'User_03',
+      acao: 'Excluiu laudo',
+      nomeLaudo: 'LA 000 SAD/003',
+      dataModificacao: '18/07/2025',
+    },
+    {
+      id: 4,
+      usuario: 'User_02',
+      acao: 'Editou laudo',
+      nomeLaudo: 'LA 000 SAD/004',
+      dataModificacao: '17/07/2025',
+    },
+  ])
+
+  // TODO: Integrar com backend - buscar logs de usuários
+  // useEffect(() => {
+  //   fetchUserLogs().then(setUserLogs)
+  // }, [])
+
   return (
     <main className="main-layout main-config">
       <section className="config-container">
@@ -512,30 +833,14 @@ function HistoryUsersPage() {
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td>User_01</td>
-                  <td>Editou laudo</td>
-                  <td>LA 000 SAD/XXX</td>
-                  <td>18/07/2025</td>
-                </tr>
-                <tr>
-                  <td>User_02</td>
-                  <td>Extraiu novo laudo</td>
-                  <td>LA 000 SAD/XXX</td>
-                  <td>17/07/2025</td>
-                </tr>
-                <tr>
-                  <td>User_03</td>
-                  <td>Excluiu laudo</td>
-                  <td>LA 000 SAD/XXX</td>
-                  <td>18/07/2025</td>
-                </tr>
-                <tr>
-                  <td>User_02</td>
-                  <td>Editou laudo</td>
-                  <td>LA 000 SAD/XXX</td>
-                  <td>17/07/2025</td>
-                </tr>
+                {userLogs.map((log) => (
+                  <tr key={log.id}>
+                    <td>{log.usuario}</td>
+                    <td>{log.acao}</td>
+                    <td>{log.nomeLaudo}</td>
+                    <td>{log.dataModificacao}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -546,6 +851,47 @@ function HistoryUsersPage() {
 }
 
 function IndicatorsPage() {
+  const [chartType, setChartType] = useState('vendas')
+  const [timeFilter, setTimeFilter] = useState('ano')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+
+  // Dados mockados para os KPIs
+  const kpiData = {
+    totalLaudos: { value: 1247, change: '+12%', period: 'Este mês' },
+    laudosExtraidos: { value: 892, change: '+8%', period: 'Esta semana' },
+    taxaSucesso: { value: '94.5%', change: '+2.3%', period: 'Taxa de sucesso' },
+    tempoMedio: { value: '3.2h', change: '-0.5h', period: 'Tempo médio' },
+  }
+
+  // Dados mockados para o gráfico
+  const chartData = {
+    vendas: [120, 150, 180, 200, 175, 190, 210, 195, 220, 205, 230, 250],
+    visitas: [80, 95, 110, 125, 115, 130, 140, 135, 145, 150, 160, 170],
+  }
+
+  const handleChartTypeChange = (type) => {
+    setChartType(type)
+    // TODO: Integrar com backend - buscar dados do gráfico
+    // fetchChartData(type, timeFilter, startDate, endDate)
+  }
+
+  const handleTimeFilterChange = (filter) => {
+    setTimeFilter(filter)
+    setStartDate('')
+    setEndDate('')
+    // TODO: Integrar com backend - aplicar filtro de tempo
+    // fetchChartData(chartType, filter, startDate, endDate)
+  }
+
+  const handleDateRangeChange = () => {
+    if (startDate && endDate) {
+      setTimeFilter('custom')
+      // TODO: Integrar com backend - buscar dados por período customizado
+      // fetchChartData(chartType, 'custom', startDate, endDate)
+    }
+  }
+
   return (
     <main className="main-layout main-config">
       <section className="config-container">
@@ -559,33 +905,145 @@ function IndicatorsPage() {
 
         <section className="config-card indicators-grid">
           <div className="indicator-card">
-            <h3>Total Sales</h3>
-            <p className="indicator-value">¥ 126,560</p>
-            <p className="indicator-sub">WoW Change 12%</p>
+            <div className="indicator-header">
+              <h3>Total de Laudos</h3>
+              <span className="indicator-info">ℹ</span>
+            </div>
+            <p className="indicator-value">{kpiData.totalLaudos.value.toLocaleString('pt-BR')}</p>
+            <p className="indicator-sub">
+              <span className="indicator-change positive">{kpiData.totalLaudos.change}</span>
+              {' '}
+              {kpiData.totalLaudos.period}
+            </p>
           </div>
           <div className="indicator-card">
-            <h3>Visits</h3>
-            <p className="indicator-value">8,846</p>
-            <p className="indicator-sub">Daily Visits 1,224</p>
+            <div className="indicator-header">
+              <h3>Laudos Extraídos</h3>
+              <span className="indicator-info">ℹ</span>
+            </div>
+            <p className="indicator-value">{kpiData.laudosExtraidos.value.toLocaleString('pt-BR')}</p>
+            <p className="indicator-sub">
+              <span className="indicator-change positive">{kpiData.laudosExtraidos.change}</span>
+              {' '}
+              {kpiData.laudosExtraidos.period}
+            </p>
           </div>
           <div className="indicator-card">
-            <h3>Payments</h3>
-            <p className="indicator-value">6,560</p>
-            <p className="indicator-sub">Conversion Rate 60%</p>
-          </div>
+            <div className="indicator-header">
+              <h3>Taxa de Sucesso</h3>
+              <span className="indicator-info">ℹ</span>
+            </div>
+            <p className="indicator-value">{kpiData.taxaSucesso.value}</p>
+            <p className="indicator-sub">
+              <span className="indicator-change positive">{kpiData.taxaSucesso.change}</span>
+              {' '}
+              {kpiData.taxaSucesso.period}
+        </p>
+      </div>
           <div className="indicator-card">
-            <h3>Operational Effect</h3>
-            <p className="indicator-value">78%</p>
-            <p className="indicator-sub">DoD Change</p>
+            <div className="indicator-header">
+              <h3>Tempo Médio</h3>
+              <span className="indicator-info">ℹ</span>
+            </div>
+            <p className="indicator-value">{kpiData.tempoMedio.value}</p>
+            <p className="indicator-sub">
+              <span className="indicator-change negative">{kpiData.tempoMedio.change}</span>
+              {' '}
+              {kpiData.tempoMedio.period}
+            </p>
           </div>
         </section>
 
         <section className="config-card indicators-chart-card">
-          <div className="chart-tabs">
-            <button className="chart-tab chart-tab-active">Sales</button>
-            <button className="chart-tab">Visits</button>
+          <div className="chart-header">
+            <div className="chart-tabs">
+              <button
+                type="button"
+                className={`chart-tab ${chartType === 'vendas' ? 'chart-tab-active' : ''}`}
+                onClick={() => handleChartTypeChange('vendas')}
+              >
+                Vendas
+              </button>
+              <button
+                type="button"
+                className={`chart-tab ${chartType === 'visitas' ? 'chart-tab-active' : ''}`}
+                onClick={() => handleChartTypeChange('visitas')}
+              >
+                Visitas
+              </button>
+            </div>
+            <div className="chart-filters">
+              <button
+                type="button"
+                className={`time-filter-btn ${timeFilter === 'dia' ? 'active' : ''}`}
+                onClick={() => handleTimeFilterChange('dia')}
+              >
+                Dia
+              </button>
+              <button
+                type="button"
+                className={`time-filter-btn ${timeFilter === 'semana' ? 'active' : ''}`}
+                onClick={() => handleTimeFilterChange('semana')}
+              >
+                Semana
+              </button>
+              <button
+                type="button"
+                className={`time-filter-btn ${timeFilter === 'mes' ? 'active' : ''}`}
+                onClick={() => handleTimeFilterChange('mes')}
+              >
+                Mês
+              </button>
+              <button
+                type="button"
+                className={`time-filter-btn ${timeFilter === 'ano' ? 'active' : ''}`}
+                onClick={() => handleTimeFilterChange('ano')}
+              >
+                Ano
+              </button>
+              <div className="date-range-picker">
+                <input
+                  type="date"
+                  className="date-input"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  placeholder="Data inicial"
+                />
+                <span className="date-separator">até</span>
+                <input
+                  type="date"
+                  className="date-input"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  placeholder="Data final"
+                />
+                {(startDate || endDate) && (
+                  <button
+                    type="button"
+                    className="apply-date-btn"
+                    onClick={handleDateRangeChange}
+                  >
+                    Aplicar
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
-          <div className="fake-chart" />
+          <div className="chart-container">
+            <div className="chart-title">Tendência de Vendas das Lojas</div>
+            <div className="chart-bars">
+              {chartData[chartType === 'vendas' ? 'vendas' : 'visitas'].map((value, index) => (
+                <div key={index} className="chart-bar-wrapper">
+                  <div
+                    className="chart-bar"
+                    style={{ height: `${(value / 300) * 100}%` }}
+                    title={`${value}`}
+                  />
+                  <span className="chart-bar-label">{index + 1}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
       </section>
     </main>
@@ -593,39 +1051,147 @@ function IndicatorsPage() {
 }
 
 function ConfigPage() {
+  const [newUser, setNewUser] = useState({
+    nome: '',
+    email: '',
+    funcao: '',
+  })
+  const [users, setUsers] = useState([
+    {
+      id: 4,
+      nome: 'Nome e sobrenome',
+      email: 'email4@sad.pe.gov.br',
+      tipo: 'Cadastro',
+      ultimoAcesso: '10/07/2025',
+      totalAcessos: 5,
+    },
+    {
+      id: 3,
+      nome: 'Nome e sobrenome',
+      email: 'email3@sad.pe.gov.br',
+      tipo: 'Gestão',
+      ultimoAcesso: '17/07/2025',
+      totalAcessos: 10,
+    },
+    {
+      id: 2,
+      nome: 'Nome e sobrenome',
+      email: 'email2@sad.pe.gov.br',
+      tipo: 'Cadastro',
+      ultimoAcesso: '15/07/2025',
+      totalAcessos: 2,
+    },
+    {
+      id: 1,
+      nome: 'Nome e sobrenome',
+      email: 'email1@sad.pe.gov.br',
+      tipo: 'Cadastro',
+      ultimoAcesso: '18/07/2025',
+      totalAcessos: 10,
+    },
+  ])
+
+  const handleNewUserChange = (field, value) => {
+    setNewUser((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleCreateUser = () => {
+    if (!newUser.nome || !newUser.email || !newUser.funcao) {
+      alert('Preencha todos os campos')
+      return
+    }
+    // TODO: Integrar com backend - criar novo usuário
+    // createUser(newUser).then((user) => {
+    //   setUsers([...users, user])
+    //   setNewUser({ nome: '', email: '', funcao: '' })
+    // })
+    const newId = users.length > 0 ? Math.max(...users.map((u) => u.id)) + 1 : 1
+    setUsers([
+      {
+        id: newId,
+        nome: newUser.nome,
+        email: newUser.email,
+        tipo: newUser.funcao,
+        ultimoAcesso: new Date().toLocaleDateString('pt-BR'),
+        totalAcessos: 0,
+      },
+      ...users,
+    ])
+    setNewUser({ nome: '', email: '', funcao: '' })
+  }
+
+  const handleInativar = (id) => {
+    // TODO: Integrar com backend - inativar usuário
+    // inativarUser(id)
+    console.log('Inativar usuário:', id)
+  }
+
+  const handleEditar = (id) => {
+    // TODO: Integrar com backend - editar usuário
+    // editarUser(id)
+    console.log('Editar usuário:', id)
+  }
+
+  const handleReenviarEmail = (id) => {
+    // TODO: Integrar com backend - reenviar email
+    // reenviarEmail(id)
+    console.log('Reenviar email para usuário:', id)
+  }
+
   return (
     <main className="main-layout main-config">
-        <section className="config-container">
-          <header className="config-header">
-            <h1>Configurações dos usuários</h1>
-            <p>Configurações e cadastros dos usuários no sistema</p>
-          </header>
+      <section className="config-container">
+        <header className="config-header">
+          <h1>Configurações dos usuários</h1>
+          <p>Configurações e cadastros dos usuários no sistema</p>
+        </header>
 
-          <section className="config-card">
-            <h2>Novo usuário</h2>
-            <div className="new-user-grid">
-              <div className="form-group">
-                <label>Nome</label>
-                <input className="field-input rectangular" placeholder="User_001" />
-              </div>
-              <div className="form-group">
-                <label>Email</label>
-                <input
-                  className="field-input rectangular"
-                  placeholder="user_001@sad.pe.gov.br"
-                />
-              </div>
-              <div className="form-group">
-                <label>Função</label>
-                <select className="field-input rectangular">
-                  <option>Selecione o cargo</option>
-                </select>
-              </div>
-              <div className="form-group form-group-button">
-                <button className="primary-button">Criar</button>
-              </div>
+        <section className="config-card">
+          <h2>Novo usuário</h2>
+          <div className="new-user-grid">
+            <div className="form-group">
+              <label>Nome</label>
+              <input
+                className="field-input rectangular"
+                placeholder="User_001"
+                value={newUser.nome}
+                onChange={(e) => handleNewUserChange('nome', e.target.value)}
+              />
             </div>
-          </section>
+            <div className="form-group">
+              <label>Email</label>
+              <input
+                className="field-input rectangular"
+                placeholder="user_001@sad.pe.gov.br"
+                type="email"
+                value={newUser.email}
+                onChange={(e) => handleNewUserChange('email', e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <label>Função</label>
+              <select
+                className="field-input rectangular"
+                value={newUser.funcao}
+                onChange={(e) => handleNewUserChange('funcao', e.target.value)}
+              >
+                <option value="">Selecione o cargo</option>
+                <option value="Cadastro">Cadastro</option>
+                <option value="Gestão">Gestão</option>
+                <option value="Admin">Admin</option>
+              </select>
+            </div>
+            <div className="form-group form-group-button">
+              <button
+                type="button"
+                className="primary-button"
+                onClick={handleCreateUser}
+              >
+                Criar
+              </button>
+            </div>
+          </div>
+        </section>
 
           <section className="config-card table-card">
             <header className="table-header">
@@ -645,66 +1211,39 @@ function ConfigPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td>04</td>
-                    <td>Nome e sobrenome</td>
-                    <td>email4@sad.pe.gov.br</td>
-                    <td>Cadastro</td>
-                    <td>10/07/2025</td>
-                    <td>05</td>
-                    <td className="actions-cell">
-                      <button className="tag-button tag-danger">Inativar</button>
-                      <button className="tag-button tag-primary">Editar</button>
-                      <button className="tag-button tag-secondary">
-                        Reenviar E-mail
-                      </button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>03</td>
-                    <td>Nome e sobrenome</td>
-                    <td>email3@sad.pe.gov.br</td>
-                    <td>Gestão</td>
-                    <td>17/07/2025</td>
-                    <td>10</td>
-                    <td className="actions-cell">
-                      <button className="tag-button tag-danger">Inativar</button>
-                      <button className="tag-button tag-primary">Editar</button>
-                      <button className="tag-button tag-secondary">
-                        Reenviar E-mail
-                      </button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>02</td>
-                    <td>Nome e sobrenome</td>
-                    <td>email2@sad.pe.gov.br</td>
-                    <td>Cadastro</td>
-                    <td>15/07/2025</td>
-                    <td>02</td>
-                    <td className="actions-cell">
-                      <button className="tag-button tag-danger">Inativar</button>
-                      <button className="tag-button tag-primary">Editar</button>
-                      <button className="tag-button tag-secondary">
-                        Reenviar E-mail
-                      </button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>01</td>
-                    <td>Nome e sobrenome</td>
-                    <td>email1@sad.pe.gov.br</td>
-                    <td>Cadastro</td>
-                    <td>18/07/2025</td>
-                    <td>10</td>
-                    <td className="actions-cell">
-                      <button className="tag-button tag-danger">Inativar</button>
-                      <button className="tag-button tag-primary">Editar</button>
-                      <button className="tag-button tag-secondary">
-                        Reenviar E-mail
-                      </button>
-                    </td>
-                  </tr>
+                  {users.map((user) => (
+                    <tr key={user.id}>
+                      <td>{user.id.toString().padStart(2, '0')}</td>
+                      <td>{user.nome}</td>
+                      <td>{user.email}</td>
+                      <td>{user.tipo}</td>
+                      <td>{user.ultimoAcesso}</td>
+                      <td>{user.totalAcessos.toString().padStart(2, '0')}</td>
+                      <td className="actions-cell">
+                        <button
+                          type="button"
+                          className="tag-button tag-danger"
+                          onClick={() => handleInativar(user.id)}
+                        >
+                          Inativar
+                        </button>
+                        <button
+                          type="button"
+                          className="tag-button tag-primary"
+                          onClick={() => handleEditar(user.id)}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          className="tag-button tag-secondary"
+                          onClick={() => handleReenviarEmail(user.id)}
+                        >
+                          Reenviar E-mail
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
