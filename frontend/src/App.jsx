@@ -277,7 +277,7 @@ function AppHeader({ activePage, user, onNavigate, onLogout, onToggleSidebar, da
   )
 }
 
-function UploadPage() {
+function UploadPage({ onNavigate, onAddLaudos }) {
   const [selectedFiles, setSelectedFiles] = useState([])
   const fileInputRef = useRef(null)
 
@@ -312,7 +312,84 @@ function UploadPage() {
     if (selectedFiles.length > 0) {
       // TODO: Integrar com backend - enviar arquivos
       // uploadFiles(selectedFiles)
+      // Processar arquivos e criar laudos
+      const novosLaudos = selectedFiles.map((file, index) => {
+        // Gerar dados mockados para cada arquivo
+        // Em produção, isso viria do backend após processar o arquivo
+        const total = Math.floor(Math.random() * 20) + 20 // 20-40 campos
+        const extraidos = Math.floor(Math.random() * total) + 1
+        const confiabilidade = Math.floor((extraidos / total) * 100)
+        
+        let acao = 'Prosseguir'
+        let descartado = false
+        
+        if (confiabilidade < 20) {
+          acao = 'Descartado'
+          descartado = true
+        } else if (confiabilidade < 50) {
+          acao = 'Revisar Campos'
+        }
+        
+        return {
+          id: Date.now() + index, // ID único baseado em timestamp
+          nome: file.name,
+          numero: `LA 000 SAD/${String(Date.now() + index).slice(-3).padStart(3, '0')}`,
+          extraidos: extraidos,
+          total: total,
+          confiabilidade: confiabilidade,
+          acao: acao,
+          descartado: descartado,
+          // Dados de localização
+          endereco: 'Rua das Flores',
+          numeroEndereco: '123',
+          complemento: null,
+          bairro: 'Centro',
+          cep: '50000-000',
+          pais: 'Brasil',
+          estado: 'Pernambuco',
+          cidade: null,
+          regiao: 'Nordeste',
+          confrontanteFrente: null,
+          confrontanteFundo: null,
+          confrontanteDireita: null,
+          confrontanteEsquerda: 'Rua Principal',
+          pontoReferencia: 'Próximo ao mercado',
+          observacaoLocalizacao: 'Imóvel em bom estado',
+          coordenadaS: null,
+          coordenadaW: "8°03'14.0\"W",
+          // Características do imóvel
+          areaTerreno: '500 m²',
+          areaConstruida: null,
+          unidadeMedida: 'metros quadrados',
+          estadoConservacao: 'Bom estado de conservação',
+          limitacaoAdministrativa: null,
+          // Dados financeiros
+          criterioValoracao: 'Valor de mercado',
+          dataValoracao: null,
+          numeroDocumento: null,
+          valorConstrucaoNova: 'R$ 200.000,00',
+          valorAreaConstruida: 'R$ 150.000',
+          valorTerreno: 'R$ 100.000',
+          valorTotal: 'R$ 450.000',
+          observacaoFinanceira: 'Valor atualizado em 2025',
+        }
+      })
+      
+      // Adicionar os novos laudos ao estado compartilhado
+      if (onAddLaudos) {
+        onAddLaudos(novosLaudos)
+      }
+      
       console.log('Arquivos selecionados:', selectedFiles)
+      console.log('Laudos criados:', novosLaudos)
+      
+      // Limpar arquivos selecionados
+      setSelectedFiles([])
+      
+      // Navegar para a página de edição
+      if (onNavigate) {
+        onNavigate(PAGES.EDIT)
+      }
     }
   }
 
@@ -409,27 +486,25 @@ function UploadPage() {
   )
 }
 
-function EditDataPage({ onNavigate }) {
+function EditDataPage({ onNavigate, laudos, setLaudos }) {
   const [selectedRows, setSelectedRows] = useState([])
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(4)
-  const [laudos, setLaudos] = useState([
-    { id: 1, nome: 'Laudo_xxx.pdf', extraidos: 12, total: 30, confiabilidade: 40, acao: 'Revisar Campos', descartado: false },
-    { id: 2, nome: 'Laudo_xxx.pdf', extraidos: 30, total: 30, confiabilidade: 100, acao: 'Prosseguir', descartado: false },
-    { id: 3, nome: 'Laudo_xxx.pdf', extraidos: 21, total: 30, confiabilidade: 70, acao: 'Prosseguir', descartado: false },
-    { id: 4, nome: 'Laudo_xxx.pdf', extraidos: 3, total: 30, confiabilidade: 10, acao: 'Descartado', descartado: true },
-  ])
+  const [showValidateModal, setShowValidateModal] = useState(false)
+  
+  // Usar laudos passados como prop, ou array vazio se não houver
+  const laudosList = laudos || []
 
-  const totalPages = Math.ceil(laudos.length / itemsPerPage)
+  const totalPages = Math.ceil(laudosList.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const currentLaudos = laudos.slice(startIndex, endIndex)
+  const currentLaudos = laudosList.slice(startIndex, endIndex)
 
   const handleSelectAll = () => {
-    if (selectedRows.length === laudos.length) {
+    if (selectedRows.length === laudosList.length) {
       setSelectedRows([])
     } else {
-      setSelectedRows(laudos.map((l) => l.id))
+      setSelectedRows(laudosList.map((l) => l.id))
     }
   }
 
@@ -440,19 +515,40 @@ function EditDataPage({ onNavigate }) {
   }
 
   const handleDeleteAll = () => {
-    setLaudos((prev) => prev.filter((l) => !selectedRows.includes(l.id)))
+    if (setLaudos) {
+      setLaudos((prev) => prev.filter((l) => !selectedRows.includes(l.id)))
+    }
     setSelectedRows([])
   }
 
   const handleDeleteRow = (id) => {
-    setLaudos((prev) => prev.filter((l) => l.id !== id))
+    if (setLaudos) {
+      setLaudos((prev) => prev.filter((l) => l.id !== id))
+    }
     setSelectedRows((prev) => prev.filter((rowId) => rowId !== id))
   }
 
   const handleValidate = () => {
-    if (onNavigate) {
-      onNavigate(PAGES.EXPORT)
+    if (selectedRows.length === 0) {
+      alert('Selecione pelo menos um laudo para validar')
+      return
     }
+    
+    // Mostrar modal de confirmação
+    setShowValidateModal(true)
+  }
+  
+  const confirmValidate = () => {
+    // Filtrar apenas os laudos selecionados
+    const laudosSelecionados = laudosList.filter((laudo) => selectedRows.includes(laudo.id))
+    
+    // Passar os laudos selecionados para a página de exportação
+    if (onNavigate) {
+      onNavigate(PAGES.EXPORT, laudosSelecionados)
+    }
+    
+    // Fechar modal
+    setShowValidateModal(false)
   }
 
   const getConfidenceClass = (confiabilidade) => {
@@ -523,7 +619,7 @@ function EditDataPage({ onNavigate }) {
                   <th>
                     <input
                       type="checkbox"
-                      checked={selectedRows.length === laudos.length && laudos.length > 0}
+                      checked={selectedRows.length === laudosList.length && laudosList.length > 0}
                       onChange={handleSelectAll}
                       className="table-checkbox"
                     />
@@ -553,53 +649,61 @@ function EditDataPage({ onNavigate }) {
                 </tr>
               </thead>
               <tbody>
-                {currentLaudos.map((laudo) => (
-                  <tr
-                    key={laudo.id}
-                    className={laudo.descartado ? 'row-danger' : ''}
-                  >
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={selectedRows.includes(laudo.id)}
-                        onChange={() => handleSelectRow(laudo.id)}
-                        className="table-checkbox"
-                      />
-                      {laudo.id}
-                    </td>
-                    <td>
-                      <span className="file-link">
-                        {laudo.nome}
-                        <span className="file-link-icon">👁</span>
-                      </span>
-                    </td>
-                    <td>
-                      {laudo.extraidos}/{laudo.total}
-                    </td>
-                    <td>{laudo.confiabilidade}%</td>
-                    <td>
-                      <span
-                        className={`confidence-bar ${getConfidenceClass(laudo.confiabilidade)}`}
-                      />
-                    </td>
-                    <td>
-                      <span className={`action-badge ${getActionClass(laudo.acao)}`}>
-                        <span className="action-dot"></span>
-                        {laudo.acao}
-                      </span>
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className="delete-row-btn"
-                        onClick={() => handleDeleteRow(laudo.id)}
-                        title="Excluir"
-                      >
-                        🗑️
-                      </button>
+                {laudosList.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
+                      Nenhum laudo carregado. Faça upload de arquivos na página de Upload para começar.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  currentLaudos.map((laudo) => (
+                    <tr
+                      key={laudo.id}
+                      className={laudo.descartado ? 'row-danger' : ''}
+                    >
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={selectedRows.includes(laudo.id)}
+                          onChange={() => handleSelectRow(laudo.id)}
+                          className="table-checkbox"
+                        />
+                        {laudo.id}
+                      </td>
+                      <td>
+                        <span className="file-link">
+                          {laudo.nome}
+                          <span className="file-link-icon">👁</span>
+                        </span>
+                      </td>
+                      <td>
+                        {laudo.extraidos}/{laudo.total}
+                      </td>
+                      <td>{laudo.confiabilidade}%</td>
+                      <td>
+                        <span
+                          className={`confidence-bar ${getConfidenceClass(laudo.confiabilidade)}`}
+                        />
+                      </td>
+                      <td>
+                        <span className={`action-badge ${getActionClass(laudo.acao)}`}>
+                          <span className="action-dot"></span>
+                          {laudo.acao}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="delete-row-btn"
+                          onClick={() => handleDeleteRow(laudo.id)}
+                          title="Excluir"
+                        >
+                          🗑️
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -621,7 +725,7 @@ function EditDataPage({ onNavigate }) {
                 <option value="50">50</option>
               </select>
               <span className="pagination-info">
-                {startIndex + 1}-{Math.min(endIndex, laudos.length)} de {laudos.length}
+                {startIndex + 1}-{Math.min(endIndex, laudosList.length)} de {laudosList.length}
               </span>
             </div>
             <div className="pagination-right">
@@ -672,19 +776,69 @@ function EditDataPage({ onNavigate }) {
           </div>
         </section>
       </section>
+
+      {/* Modal de Confirmação de Validação */}
+      {showValidateModal && (
+        <div className="modal-overlay" onClick={() => setShowValidateModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Confirmar Validação</h3>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setShowValidateModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="modal-question">
+                Tem certeza que deseja validar {selectedRows.length} laudo(s) selecionado(s)?
+              </p>
+              <p className="modal-warning">
+                Os laudos validados serão enviados para a página de exportação.
+              </p>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="modal-button modal-button-cancel"
+                  onClick={() => setShowValidateModal(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="modal-button modal-button-confirm"
+                  onClick={confirmValidate}
+                >
+                  Validar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
 
-function ExportPage() {
-  const [selectedLaudos, setSelectedLaudos] = useState([2, 3])
+function ExportPage({ laudosValidados }) {
+  const [selectedLaudos, setSelectedLaudos] = useState([])
   const [exportFormat, setExportFormat] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(2)
-  const [laudos, setLaudos] = useState([
-    { id: 2, nome: 'Laudo_xxx.pdf', extraidos: 17, total: 17, confiabilidade: 100, acao: 'Prosseguir' },
-    { id: 3, nome: 'Laudo_xxx.pdf', extraidos: 12, total: 17, confiabilidade: 70, acao: 'Prosseguir' },
-  ])
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
+  const [selectedLaudoDetails, setSelectedLaudoDetails] = useState(null)
+  
+  // Usar laudos validados passados como prop, ou array vazio se não houver
+  const laudos = laudosValidados || []
+  
+  // Inicializar seleção com todos os laudos quando a página carregar
+  useEffect(() => {
+    if (laudos.length > 0) {
+      setSelectedLaudos(laudos.map((l) => l.id))
+    }
+  }, [laudos])
 
   const totalPages = Math.ceil(laudos.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
@@ -713,11 +867,28 @@ function ExportPage() {
     console.log('Exportar laudos:', selectedLaudos, exportFormat)
   }
 
+  const handleOpenDetails = (laudo) => {
+    setSelectedLaudoDetails(laudo)
+    setShowDetailsModal(true)
+  }
+
+  const handleCloseDetails = () => {
+    setShowDetailsModal(false)
+    setSelectedLaudoDetails(null)
+  }
+
   const getConfidenceClass = (confiabilidade) => {
     if (confiabilidade >= 80) return 'confidence-high'
     if (confiabilidade >= 50) return 'confidence-medium'
     if (confiabilidade >= 20) return 'confidence-low'
     return 'confidence-very-low'
+  }
+
+  const getActionClass = (acao) => {
+    if (acao === 'Prosseguir') return 'action-prosseguir'
+    if (acao === 'Revisar Campos') return 'action-revisar'
+    if (acao === 'Descartado' || acao === 'Descartar') return 'action-descartado'
+    return ''
   }
 
   return (
@@ -784,39 +955,52 @@ function ExportPage() {
                 </tr>
               </thead>
               <tbody>
-                {currentLaudos.map((laudo) => (
-                  <tr key={laudo.id}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={selectedLaudos.includes(laudo.id)}
-                        onChange={() => handleSelectLaudo(laudo.id)}
-                        className="table-checkbox"
-                      />
-                      {laudo.id}
-                    </td>
-                    <td>
-                      <span className="file-link">
-                        {laudo.nome}
-                        <span className="file-link-icon">👁</span>
-                      </span>
-                    </td>
-                    <td>
-                      {laudo.extraidos}/{laudo.total}
-                    </td>
-                    <td>{laudo.confiabilidade}%</td>
-                    <td>
-                      <span
-                        className={`confidence-bar ${getConfidenceClass(laudo.confiabilidade)}`}
-                      />
-                    </td>
-                    <td>
-                      <button className="action-prosseguir-btn">
-                        {laudo.acao}
-                      </button>
+                {laudos.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}>
+                      Nenhum laudo validado. Selecione laudos na página de edição e clique em "Validar Dados" para continuar.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  currentLaudos.map((laudo) => (
+                    <tr key={laudo.id}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={selectedLaudos.includes(laudo.id)}
+                          onChange={() => handleSelectLaudo(laudo.id)}
+                          className="table-checkbox"
+                        />
+                        {laudo.id}
+                      </td>
+                      <td>
+                        <span 
+                          className="file-link" 
+                          onClick={() => handleOpenDetails(laudo)}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          {laudo.nome}
+                          <span className="file-link-icon">👁</span>
+                        </span>
+                      </td>
+                      <td>
+                        {laudo.extraidos}/{laudo.total}
+                      </td>
+                      <td>{laudo.confiabilidade}%</td>
+                      <td>
+                        <span
+                          className={`confidence-bar ${getConfidenceClass(laudo.confiabilidade)}`}
+                        />
+                      </td>
+                      <td>
+                        <span className={`action-badge ${getActionClass(laudo.acao)}`}>
+                          <span className="action-dot"></span>
+                          {laudo.acao}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -902,6 +1086,466 @@ function ExportPage() {
           </div>
         </section>
       </section>
+
+      {/* Modal de Detalhes do Laudo */}
+      {showDetailsModal && selectedLaudoDetails && (
+        <div className="modal-overlay" onClick={handleCloseDetails} style={{ zIndex: 1000 }}>
+          <div 
+            className="modal-content" 
+            onClick={(e) => e.stopPropagation()}
+            style={{ 
+              maxWidth: '90%', 
+              width: '900px', 
+              maxHeight: '90vh', 
+              overflowY: 'auto',
+              padding: '0'
+            }}
+          >
+            <div style={{ padding: '2rem', borderBottom: '1px solid #e5e7eb' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '600' }}>
+                  Detalhes do Laudo {selectedLaudoDetails.numero || `LA 000 SAD/${selectedLaudoDetails.id.toString().padStart(3, '0')}`}
+                </h2>
+                <button
+                  type="button"
+                  className="modal-close"
+                  onClick={handleCloseDetails}
+                  style={{ fontSize: '1.5rem', background: 'none', border: 'none', cursor: 'pointer' }}
+                >
+                  ×
+                </button>
+              </div>
+              <p style={{ margin: 0, color: '#6b7280', fontSize: '0.875rem' }}>
+                Informações completas extraídas do documento
+              </p>
+            </div>
+
+            <div style={{ padding: '2rem' }}>
+              {/* Dados sobre Localização do Imóvel */}
+              <div style={{ marginBottom: '2rem' }}>
+                <h3 style={{ marginBottom: '1rem', fontSize: '1.125rem', fontWeight: '600', color: '#111827' }}>
+                  Dados sobre Localização do Imóvel
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Endereço
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.endereco || 'xxxxxxxxxx'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Número
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.numero || 'xxxxxxxxx'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Complemento
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.complemento || 'Não encontrado'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Bairro
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.bairro || 'xxxxxxx'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      CEP
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.cep || 'xxxx'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      País
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.pais || 'xxxx'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Estado
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.estado || 'xxxxxxxx'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Cidade/Município
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.cidade || 'Não encontrado'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Região
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.regiao || 'xxxxxxx'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Confrontante frente
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.confrontanteFrente || 'Não encontrado'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Confrontante fundo
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.confrontanteFundo || 'Não encontrado'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Confrontante L. direita
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.confrontanteDireita || 'Não encontrado'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Confrontante L. esquerda
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.confrontanteEsquerda || 'xxxxxxxxxxxxxxxxxxxxxxxxxxxx'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Ponto de referência
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.pontoReferencia || 'xxxxxxxxxxxxxxxxxx'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Observação
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.observacaoLocalizacao || 'xxxxxxxxxxxxx'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Coordenada geográfica S
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.coordenadaS || 'Não encontrado'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Coordenada geográfica W
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.coordenadaW || 'xxxxxxxxxxxxxxxxxxxxxx'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Características do Imóvel */}
+              <div style={{ marginBottom: '2rem' }}>
+                <h3 style={{ marginBottom: '1rem', fontSize: '1.125rem', fontWeight: '600', color: '#111827' }}>
+                  Características do Imóvel
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Área do terreno
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.areaTerreno || 'xxxxxxxxxxxxxxxxxx'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Área construída
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.areaConstruida || 'Não encontrado'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Unidade de medida
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.unidadeMedida || 'xxxxxxxxxxxxx'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Estado de conservação
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.estadoConservacao || 'xxxxxxxxxxxxxxxxxxxxxxxxx'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Limitação administrativa
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.limitacaoAdministrativa || 'Não encontrado'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Dados Financeiros */}
+              <div style={{ marginBottom: '2rem' }}>
+                <h3 style={{ marginBottom: '1rem', fontSize: '1.125rem', fontWeight: '600', color: '#111827' }}>
+                  Dados Financeiros
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Critério de valoração
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.criterioValoracao || 'xxxxxxxxxxxxxxxxxxxxxxx'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Data da valoração
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.dataValoracao || 'Não encontrado'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Nº do documento
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.numeroDocumento || 'Não encontrado'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Valor da construção nova
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.valorConstrucaoNova || 'xxxxxxxxxxxxxxxxxxxxxxx'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Valor da área construída
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.valorAreaConstruida || 'xxxxxxxx'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Valor do terreno
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.valorTerreno || 'xxxxxxxxxx'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Valor total
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.valorTotal || 'xxxxxxxx'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Observação
+                    </label>
+                    <input 
+                      type="text" 
+                      value={selectedLaudoDetails.observacaoFinanceira || 'xxxxxxxxxxxxxx'} 
+                      readOnly
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Rodapé do Modal */}
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                marginTop: '2rem',
+                paddingTop: '1rem',
+                borderTop: '1px solid #e5e7eb'
+              }}>
+                <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                  *Dados editados pelo usuário
+                </span>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button
+                    type="button"
+                    className="primary-button"
+                    onClick={handleCloseDetails}
+                    style={{ padding: '0.5rem 1.5rem' }}
+                  >
+                    Voltar
+                  </button>
+                  <button
+                    type="button"
+                    className="primary-button"
+                    onClick={() => {
+                      // TODO: Implementar edição de dados
+                      console.log('Editar dados do laudo:', selectedLaudoDetails.id)
+                    }}
+                    style={{ padding: '0.5rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                  >
+                    ✏️ Editar Dados
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
@@ -915,6 +1559,8 @@ function HistoryReportsPage() {
   })
   const [selectedLaudos, setSelectedLaudos] = useState([])
   const [exportFormat, setExportFormat] = useState('')
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [laudoToDelete, setLaudoToDelete] = useState(null)
   const [laudos, setLaudos] = useState([
     {
       id: 1,
@@ -987,6 +1633,23 @@ function HistoryReportsPage() {
     // deleteLaudos(selectedLaudos)
     setLaudos((prev) => prev.filter((l) => !selectedLaudos.includes(l.id)))
     setSelectedLaudos([])
+  }
+
+  const handleDeleteRow = (id) => {
+    const laudo = laudos.find((l) => l.id === id)
+    setLaudoToDelete(laudo)
+    setShowDeleteModal(true)
+  }
+
+  const confirmDeleteRow = () => {
+    if (laudoToDelete) {
+      // TODO: Integrar com backend - excluir laudo
+      // deleteLaudo(laudoToDelete.id)
+      setLaudos((prev) => prev.filter((l) => l.id !== laudoToDelete.id))
+      setSelectedLaudos((prev) => prev.filter((laudoId) => laudoId !== laudoToDelete.id))
+    }
+    setShowDeleteModal(false)
+    setLaudoToDelete(null)
   }
 
   const handleExport = () => {
@@ -1100,6 +1763,7 @@ function HistoryReportsPage() {
                   <th>Estado de Conservação</th>
                   <th>Valor do Imóvel</th>
                   <th>Data da Extração</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -1121,6 +1785,27 @@ function HistoryReportsPage() {
                     </td>
                     <td>{laudo.valor}</td>
                     <td>{laudo.dataExtracao}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="delete-row-btn"
+                        onClick={() => handleDeleteRow(laudo.id)}
+                        title="Excluir"
+                        style={{ 
+                          color: '#dc3545', 
+                          fontSize: '1.2rem',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '0.25rem 0.5rem',
+                          transition: 'transform 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.target.style.transform = 'scale(1.2)'}
+                        onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                      >
+                        🗑️
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1154,6 +1839,51 @@ function HistoryReportsPage() {
           </div>
         </section>
       </section>
+
+      {/* Modal de Confirmação de Exclusão */}
+      {showDeleteModal && laudoToDelete && (
+        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Confirmar Exclusão</h3>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setShowDeleteModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="modal-question">
+                Tem certeza que deseja excluir o laudo <strong>{laudoToDelete.numero}</strong>?
+              </p>
+              <p className="modal-warning">
+                Esta ação não pode ser desfeita. O laudo será permanentemente removido do histórico.
+              </p>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="modal-button modal-button-cancel"
+                  onClick={() => {
+                    setShowDeleteModal(false)
+                    setLaudoToDelete(null)
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="modal-button modal-button-confirm"
+                  onClick={confirmDeleteRow}
+                >
+                  Excluir
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
@@ -1916,12 +2646,25 @@ function App() {
   const [currentUser, setCurrentUser] = useState(null)
   const [activePage, setActivePage] = useState(PAGES.UPLOAD)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [laudos, setLaudos] = useState([])
+  const [laudosValidados, setLaudosValidados] = useState([])
   const [darkMode, setDarkMode] = useState(() => {
     if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
       return true
     }
     return false
   })
+  
+  const handleAddLaudos = (novosLaudos) => {
+    setLaudos((prev) => [...prev, ...novosLaudos])
+  }
+  
+  const handleNavigate = (page, data = null) => {
+    if (page === PAGES.EXPORT && data) {
+      setLaudosValidados(data)
+    }
+    setActivePage(page)
+  }
 
   const handleLogin = (user) => {
     setCurrentUser(user)
@@ -1953,9 +2696,9 @@ function App() {
 
   let pageContent = null
 
-  if (activePage === PAGES.UPLOAD) pageContent = <UploadPage />
-  else if (activePage === PAGES.EDIT) pageContent = <EditDataPage onNavigate={setActivePage} />
-  else if (activePage === PAGES.EXPORT) pageContent = <ExportPage />
+  if (activePage === PAGES.UPLOAD) pageContent = <UploadPage onNavigate={setActivePage} onAddLaudos={handleAddLaudos} />
+  else if (activePage === PAGES.EDIT) pageContent = <EditDataPage onNavigate={handleNavigate} laudos={laudos} setLaudos={setLaudos} />
+  else if (activePage === PAGES.EXPORT) pageContent = <ExportPage laudosValidados={laudosValidados} />
   else if (activePage === PAGES.HISTORY_REPORTS)
     pageContent = <HistoryReportsPage />
   else if (activePage === PAGES.HISTORY_USERS)
