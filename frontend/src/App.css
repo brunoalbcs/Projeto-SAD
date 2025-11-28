@@ -237,6 +237,40 @@
   text-align: center;
 }
 
+.login-test-info {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  font-size: 0.75rem;
+}
+
+.dark-mode .login-test-info {
+  background: #1e3a5f;
+  border-color: #3b82f6;
+}
+
+.test-info-title {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+  color: #0369a1;
+}
+
+.dark-mode .test-info-title {
+  color: #60a5fa;
+}
+
+.test-info-item {
+  margin: 0.25rem 0;
+  color: #0c4a6e;
+  font-family: 'Courier New', monospace;
+}
+
+.dark-mode .test-info-item {
+  color: #93c5fd;
+}
+
 .link-button {
   border: none;
   background: none;
