@@ -33,9 +33,9 @@ const ROLE_ACCESS = {
 
 function deriveRoleFromEmail(email) {
   if (!email) return null
-  if (email.includes('admin@')) return 'admin'
-  if (email.includes('gestor@')) return 'gestor'
-  if (email.includes('cadastro@')) return 'cadastro'
+  if (email.includes('admin@sad')) return 'admin'
+  if (email.includes('gestor@sad')) return 'gestor'
+  if (email.includes('cadastro@sad')) return 'cadastro'
   return null
 }
 
@@ -46,8 +46,20 @@ function LoginPage({ onLogin, initialDarkMode }) {
   const handleSubmit = (event) => {
     event.preventDefault()
 
+    // TODO: Integrar com backend - validar credenciais
+    // const response = await login(email, password)
+    
+    // Validação mockada para testes
+    if (password !== 'password') {
+      alert('Senha incorreta. Use "password" para todos os emails de teste.')
+      return
+    }
+
     const role = deriveRoleFromEmail(email)
-    if (!role) return
+    if (!role) {
+      alert('Email inválido. Use: admin@sad, gestor@sad ou cadastro@sad')
+      return
+    }
 
     onLogin({ role, email, darkMode: initialDarkMode })
   }
@@ -90,23 +102,14 @@ function LoginPage({ onLogin, initialDarkMode }) {
                 E-mail
               </label>
               <div className="field-wrapper">
-                <select
+                <input
                   id="email"
+                  type="email"
                   className="field-input"
+                  placeholder="Digite seu e-mail"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                >
-                  <option value="">Selecionar</option>
-                  <option value="cadastro@sad.pe.gov.br">
-                    cadastro@sad.pe.gov.br
-                  </option>
-                  <option value="gestor@sad.pe.gov.br">
-                    gestor@sad.pe.gov.br
-                  </option>
-                  <option value="admin@sad.pe.gov.br">
-                    admin@sad.pe.gov.br
-                  </option>
-                </select>
+                />
               </div>
 
               <label className="field-label" htmlFor="password">
@@ -117,7 +120,7 @@ function LoginPage({ onLogin, initialDarkMode }) {
                   id="password"
                   type="password"
                   className="field-input"
-                  placeholder="**********"
+                  placeholder="Digite sua senha"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                 />
@@ -134,6 +137,13 @@ function LoginPage({ onLogin, initialDarkMode }) {
                 </button>
               </p>
             </form>
+
+            <div className="login-test-info">
+              <p className="test-info-title">Dados para teste:</p>
+              <p className="test-info-item">admin@sad - password</p>
+              <p className="test-info-item">gestor@sad - password</p>
+              <p className="test-info-item">cadastro@sad - password</p>
+            </div>
           </div>
         </section>
       </main>
@@ -745,7 +755,7 @@ function HistoryReportsPage() {
           <div className="history-footer">
             <div className="history-footer-left">
               <span>{selectedLaudos.length} laudo(s) selecionado(s)</span>
-            </div>
+      </div>
             <div className="history-footer-right">
               <span>Opções para exportação dos laudos:</span>
               <select
@@ -764,7 +774,7 @@ function HistoryReportsPage() {
                 onClick={handleExport}
               >
                 Baixar laudos
-              </button>
+        </button>
             </div>
           </div>
         </section>
