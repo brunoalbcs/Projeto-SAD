@@ -486,11 +486,15 @@ function UploadPage({ onNavigate, onAddLaudos }) {
   )
 }
 
-function EditDataPage({ onNavigate, laudos, setLaudos }) {
+function EditDataPage({ onNavigate, laudos, setLaudos, onAddToHistory }) {
   const [selectedRows, setSelectedRows] = useState([])
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(4)
   const [showValidateModal, setShowValidateModal] = useState(false)
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
+  const [selectedLaudoDetails, setSelectedLaudoDetails] = useState(null)
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [editedData, setEditedData] = useState(null)
   
   // Usar laudos passados como prop, ou array vazio se não houver
   const laudosList = laudos || []
@@ -542,6 +546,11 @@ function EditDataPage({ onNavigate, laudos, setLaudos }) {
     // Filtrar apenas os laudos selecionados
     const laudosSelecionados = laudosList.filter((laudo) => selectedRows.includes(laudo.id))
     
+    // Adicionar os laudos validados ao histórico
+    if (onAddToHistory) {
+      onAddToHistory(laudosSelecionados)
+    }
+    
     // Passar os laudos selecionados para a página de exportação
     if (onNavigate) {
       onNavigate(PAGES.EXPORT, laudosSelecionados)
@@ -563,6 +572,41 @@ function EditDataPage({ onNavigate, laudos, setLaudos }) {
     if (acao === 'Revisar Campos') return 'action-revisar'
     if (acao === 'Descartado') return 'action-descartado'
     return ''
+  }
+
+  const handleOpenDetails = (laudo) => {
+    setSelectedLaudoDetails(laudo)
+    setEditedData({ ...laudo })
+    setIsEditMode(false)
+    setShowDetailsModal(true)
+  }
+
+  const handleCloseDetails = () => {
+    setShowDetailsModal(false)
+    setSelectedLaudoDetails(null)
+    setIsEditMode(false)
+    setEditedData(null)
+  }
+
+  const handleEditData = () => {
+    setIsEditMode(true)
+  }
+
+  const handleFieldChange = (field, value) => {
+    setEditedData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleSaveData = () => {
+    if (editedData && selectedLaudoDetails && setLaudos) {
+      // Update the laudo in the laudos list
+      setLaudos((prev) =>
+        prev.map((l) => (l.id === selectedLaudoDetails.id ? { ...editedData } : l))
+      )
+      // Update the selected laudo details to show the new data
+      setSelectedLaudoDetails({ ...editedData })
+      // Exit edit mode
+      setIsEditMode(false)
+    }
   }
 
   return (
@@ -671,7 +715,11 @@ function EditDataPage({ onNavigate, laudos, setLaudos }) {
                         {laudo.id}
                       </td>
                       <td>
-                        <span className="file-link">
+                        <span 
+                          className="file-link" 
+                          onClick={() => handleOpenDetails(laudo)}
+                          style={{ cursor: 'pointer' }}
+                        >
                           {laudo.nome}
                           <span className="file-link-icon">👁</span>
                         </span>
@@ -818,6 +866,504 @@ function EditDataPage({ onNavigate, laudos, setLaudos }) {
           </div>
         </div>
       )}
+
+      {/* Modal de Detalhes do Laudo */}
+      {showDetailsModal && selectedLaudoDetails && (
+        <div className="modal-overlay" onClick={handleCloseDetails} style={{ zIndex: 1000 }}>
+          <div 
+            className="modal-content" 
+            onClick={(e) => e.stopPropagation()}
+            style={{ 
+              maxWidth: '90%', 
+              width: '900px', 
+              maxHeight: '90vh', 
+              overflowY: 'auto',
+              padding: '0'
+            }}
+          >
+            <div style={{ padding: '2rem', borderBottom: '1px solid #e5e7eb' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '600' }}>
+                  Detalhes do Laudo {selectedLaudoDetails.numero || `LA 000 SAD/${selectedLaudoDetails.id.toString().padStart(3, '0')}`}
+                </h2>
+                <button
+                  type="button"
+                  className="modal-close"
+                  onClick={handleCloseDetails}
+                  style={{ fontSize: '1.5rem', background: 'none', border: 'none', cursor: 'pointer' }}
+                >
+                  ×
+                </button>
+              </div>
+              <p style={{ margin: 0, color: '#6b7280', fontSize: '0.875rem' }}>
+                Informações completas extraídas do documento
+              </p>
+            </div>
+
+            <div style={{ padding: '2rem' }}>
+              {/* Dados sobre Localização do Imóvel */}
+              <div style={{ marginBottom: '2rem' }}>
+                <h3 style={{ marginBottom: '1rem', fontSize: '1.125rem', fontWeight: '600', color: '#111827' }}>
+                  Dados sobre Localização do Imóvel
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Endereço
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.endereco || '') : (selectedLaudoDetails?.endereco || 'xxxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('endereco', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Número
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.numero || '') : (selectedLaudoDetails?.numero || 'xxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('numero', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Complemento
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.complemento || '') : (selectedLaudoDetails?.complemento || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('complemento', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Bairro
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.bairro || '') : (selectedLaudoDetails?.bairro || 'xxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('bairro', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      CEP
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.cep || '') : (selectedLaudoDetails?.cep || 'xxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('cep', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      País
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.pais || '') : (selectedLaudoDetails?.pais || 'xxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('pais', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Estado
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.estado || '') : (selectedLaudoDetails?.estado || 'xxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('estado', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Cidade/Município
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.cidade || '') : (selectedLaudoDetails?.cidade || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('cidade', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Região
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.regiao || '') : (selectedLaudoDetails?.regiao || 'xxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('regiao', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Confrontante frente
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.confrontanteFrente || '') : (selectedLaudoDetails?.confrontanteFrente || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('confrontanteFrente', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Confrontante fundo
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.confrontanteFundo || '') : (selectedLaudoDetails?.confrontanteFundo || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('confrontanteFundo', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Confrontante L. direita
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.confrontanteDireita || '') : (selectedLaudoDetails?.confrontanteDireita || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('confrontanteDireita', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Confrontante L. esquerda
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.confrontanteEsquerda || '') : (selectedLaudoDetails?.confrontanteEsquerda || 'xxxxxxxxxxxxxxxxxxxxxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('confrontanteEsquerda', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Ponto de referência
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.pontoReferencia || '') : (selectedLaudoDetails?.pontoReferencia || 'xxxxxxxxxxxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('pontoReferencia', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Observação
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.observacaoLocalizacao || '') : (selectedLaudoDetails?.observacaoLocalizacao || 'xxxxxxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('observacaoLocalizacao', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Coordenada geográfica S
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.coordenadaS || '') : (selectedLaudoDetails?.coordenadaS || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('coordenadaS', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Coordenada geográfica W
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.coordenadaW || '') : (selectedLaudoDetails?.coordenadaW || 'xxxxxxxxxxxxxxxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('coordenadaW', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Características do Imóvel */}
+              <div style={{ marginBottom: '2rem' }}>
+                <h3 style={{ marginBottom: '1rem', fontSize: '1.125rem', fontWeight: '600', color: '#111827' }}>
+                  Características do Imóvel
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Área do terreno
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.areaTerreno || '') : (selectedLaudoDetails?.areaTerreno || 'xxxxxxxxxxxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('areaTerreno', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Área construída
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.areaConstruida || '') : (selectedLaudoDetails?.areaConstruida || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('areaConstruida', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Unidade de medida
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.unidadeMedida || '') : (selectedLaudoDetails?.unidadeMedida || 'xxxxxxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('unidadeMedida', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Estado de conservação
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.estadoConservacao || '') : (selectedLaudoDetails?.estadoConservacao || 'xxxxxxxxxxxxxxxxxxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('estadoConservacao', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Limitação administrativa
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.limitacaoAdministrativa || '') : (selectedLaudoDetails?.limitacaoAdministrativa || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('limitacaoAdministrativa', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Dados Financeiros */}
+              <div style={{ marginBottom: '2rem' }}>
+                <h3 style={{ marginBottom: '1rem', fontSize: '1.125rem', fontWeight: '600', color: '#111827' }}>
+                  Dados Financeiros
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Critério de valoração
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.criterioValoracao || '') : (selectedLaudoDetails?.criterioValoracao || 'xxxxxxxxxxxxxxxxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('criterioValoracao', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Data da valoração
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.dataValoracao || '') : (selectedLaudoDetails?.dataValoracao || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('dataValoracao', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Nº do documento
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.numeroDocumento || '') : (selectedLaudoDetails?.numeroDocumento || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('numeroDocumento', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Valor da construção nova
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.valorConstrucaoNova || '') : (selectedLaudoDetails?.valorConstrucaoNova || 'xxxxxxxxxxxxxxxxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('valorConstrucaoNova', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Valor da área construída
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.valorAreaConstruida || '') : (selectedLaudoDetails?.valorAreaConstruida || 'xxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('valorAreaConstruida', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Valor do terreno
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.valorTerreno || '') : (selectedLaudoDetails?.valorTerreno || 'xxxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('valorTerreno', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Valor total
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.valorTotal || editedData?.valor || '') : (selectedLaudoDetails?.valorTotal || selectedLaudoDetails?.valor || 'xxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('valorTotal', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Observação
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.observacaoFinanceira || '') : (selectedLaudoDetails?.observacaoFinanceira || 'xxxxxxxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('observacaoFinanceira', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Rodapé do Modal */}
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                marginTop: '2rem',
+                paddingTop: '1rem',
+                borderTop: '1px solid #e5e7eb'
+              }}>
+                <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                  *Dados editados pelo usuário
+                </span>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button
+                    type="button"
+                    className="primary-button"
+                    onClick={handleCloseDetails}
+                    style={{ padding: '0.5rem 1.5rem' }}
+                  >
+                    Voltar
+                  </button>
+                  {isEditMode ? (
+                    <button
+                      type="button"
+                      className="primary-button"
+                      onClick={handleSaveData}
+                      style={{ padding: '0.5rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                    >
+                      💾 Salvar dados
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="primary-button"
+                      onClick={handleEditData}
+                      style={{ padding: '0.5rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                    >
+                      ✏️ Editar Dados
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
@@ -829,6 +1375,8 @@ function ExportPage({ laudosValidados }) {
   const [itemsPerPage, setItemsPerPage] = useState(2)
   const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [selectedLaudoDetails, setSelectedLaudoDetails] = useState(null)
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [editedData, setEditedData] = useState(null)
   
   // Usar laudos validados passados como prop, ou array vazio se não houver
   const laudos = laudosValidados || []
@@ -869,12 +1417,33 @@ function ExportPage({ laudosValidados }) {
 
   const handleOpenDetails = (laudo) => {
     setSelectedLaudoDetails(laudo)
+    setEditedData({ ...laudo })
+    setIsEditMode(false)
     setShowDetailsModal(true)
   }
 
   const handleCloseDetails = () => {
     setShowDetailsModal(false)
     setSelectedLaudoDetails(null)
+    setIsEditMode(false)
+    setEditedData(null)
+  }
+
+  const handleEditData = () => {
+    setIsEditMode(true)
+  }
+
+  const handleFieldChange = (field, value) => {
+    setEditedData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleSaveData = () => {
+    if (editedData && selectedLaudoDetails) {
+      // Update the displayed data
+      setSelectedLaudoDetails({ ...editedData })
+      // Exit edit mode
+      setIsEditMode(false)
+    }
   }
 
   const getConfidenceClass = (confiabilidade) => {
@@ -1133,8 +1702,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.endereco || 'xxxxxxxxxx'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.endereco || '') : (selectedLaudoDetails?.endereco || 'xxxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('endereco', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1145,8 +1715,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.numero || 'xxxxxxxxx'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.numero || '') : (selectedLaudoDetails?.numero || 'xxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('numero', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1157,8 +1728,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.complemento || 'Não encontrado'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.complemento || '') : (selectedLaudoDetails?.complemento || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('complemento', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1169,8 +1741,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.bairro || 'xxxxxxx'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.bairro || '') : (selectedLaudoDetails?.bairro || 'xxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('bairro', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1181,8 +1754,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.cep || 'xxxx'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.cep || '') : (selectedLaudoDetails?.cep || 'xxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('cep', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1193,8 +1767,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.pais || 'xxxx'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.pais || '') : (selectedLaudoDetails?.pais || 'xxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('pais', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1205,8 +1780,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.estado || 'xxxxxxxx'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.estado || '') : (selectedLaudoDetails?.estado || 'xxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('estado', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1217,8 +1793,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.cidade || 'Não encontrado'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.cidade || '') : (selectedLaudoDetails?.cidade || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('cidade', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1229,8 +1806,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.regiao || 'xxxxxxx'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.regiao || '') : (selectedLaudoDetails?.regiao || 'xxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('regiao', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1241,8 +1819,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.confrontanteFrente || 'Não encontrado'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.confrontanteFrente || '') : (selectedLaudoDetails?.confrontanteFrente || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('confrontanteFrente', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1253,8 +1832,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.confrontanteFundo || 'Não encontrado'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.confrontanteFundo || '') : (selectedLaudoDetails?.confrontanteFundo || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('confrontanteFundo', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1265,8 +1845,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.confrontanteDireita || 'Não encontrado'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.confrontanteDireita || '') : (selectedLaudoDetails?.confrontanteDireita || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('confrontanteDireita', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1277,8 +1858,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.confrontanteEsquerda || 'xxxxxxxxxxxxxxxxxxxxxxxxxxxx'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.confrontanteEsquerda || '') : (selectedLaudoDetails?.confrontanteEsquerda || 'xxxxxxxxxxxxxxxxxxxxxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('confrontanteEsquerda', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1289,8 +1871,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.pontoReferencia || 'xxxxxxxxxxxxxxxxxx'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.pontoReferencia || '') : (selectedLaudoDetails?.pontoReferencia || 'xxxxxxxxxxxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('pontoReferencia', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1301,8 +1884,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.observacaoLocalizacao || 'xxxxxxxxxxxxx'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.observacaoLocalizacao || '') : (selectedLaudoDetails?.observacaoLocalizacao || 'xxxxxxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('observacaoLocalizacao', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1313,8 +1897,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.coordenadaS || 'Não encontrado'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.coordenadaS || '') : (selectedLaudoDetails?.coordenadaS || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('coordenadaS', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1325,8 +1910,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.coordenadaW || 'xxxxxxxxxxxxxxxxxxxxxx'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.coordenadaW || '') : (selectedLaudoDetails?.coordenadaW || 'xxxxxxxxxxxxxxxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('coordenadaW', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1346,8 +1932,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.areaTerreno || 'xxxxxxxxxxxxxxxxxx'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.areaTerreno || '') : (selectedLaudoDetails?.areaTerreno || 'xxxxxxxxxxxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('areaTerreno', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1358,8 +1945,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.areaConstruida || 'Não encontrado'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.areaConstruida || '') : (selectedLaudoDetails?.areaConstruida || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('areaConstruida', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1370,8 +1958,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.unidadeMedida || 'xxxxxxxxxxxxx'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.unidadeMedida || '') : (selectedLaudoDetails?.unidadeMedida || 'xxxxxxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('unidadeMedida', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1382,8 +1971,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.estadoConservacao || 'xxxxxxxxxxxxxxxxxxxxxxxxx'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.estadoConservacao || '') : (selectedLaudoDetails?.estadoConservacao || 'xxxxxxxxxxxxxxxxxxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('estadoConservacao', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1394,8 +1984,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.limitacaoAdministrativa || 'Não encontrado'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.limitacaoAdministrativa || '') : (selectedLaudoDetails?.limitacaoAdministrativa || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('limitacaoAdministrativa', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1415,8 +2006,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.criterioValoracao || 'xxxxxxxxxxxxxxxxxxxxxxx'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.criterioValoracao || '') : (selectedLaudoDetails?.criterioValoracao || 'xxxxxxxxxxxxxxxxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('criterioValoracao', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1427,8 +2019,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.dataValoracao || 'Não encontrado'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.dataValoracao || '') : (selectedLaudoDetails?.dataValoracao || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('dataValoracao', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1439,8 +2032,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.numeroDocumento || 'Não encontrado'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.numeroDocumento || '') : (selectedLaudoDetails?.numeroDocumento || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('numeroDocumento', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1451,8 +2045,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.valorConstrucaoNova || 'xxxxxxxxxxxxxxxxxxxxxxx'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.valorConstrucaoNova || '') : (selectedLaudoDetails?.valorConstrucaoNova || 'xxxxxxxxxxxxxxxxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('valorConstrucaoNova', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1463,8 +2058,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.valorAreaConstruida || 'xxxxxxxx'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.valorAreaConstruida || '') : (selectedLaudoDetails?.valorAreaConstruida || 'xxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('valorAreaConstruida', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1475,8 +2071,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.valorTerreno || 'xxxxxxxxxx'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.valorTerreno || '') : (selectedLaudoDetails?.valorTerreno || 'xxxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('valorTerreno', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1487,8 +2084,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.valorTotal || 'xxxxxxxx'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.valorTotal || editedData?.valor || '') : (selectedLaudoDetails?.valorTotal || selectedLaudoDetails?.valor || 'xxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('valorTotal', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1499,8 +2097,9 @@ function ExportPage({ laudosValidados }) {
                     </label>
                     <input 
                       type="text" 
-                      value={selectedLaudoDetails.observacaoFinanceira || 'xxxxxxxxxxxxxx'} 
-                      readOnly
+                      value={isEditMode ? (editedData?.observacaoFinanceira || '') : (selectedLaudoDetails?.observacaoFinanceira || 'xxxxxxxxxxxxxx')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('observacaoFinanceira', e.target.value)}
                       className="field-input rectangular"
                       style={{ width: '100%' }}
                     />
@@ -1529,17 +2128,25 @@ function ExportPage({ laudosValidados }) {
                   >
                     Voltar
                   </button>
-                  <button
-                    type="button"
-                    className="primary-button"
-                    onClick={() => {
-                      // TODO: Implementar edição de dados
-                      console.log('Editar dados do laudo:', selectedLaudoDetails.id)
-                    }}
-                    style={{ padding: '0.5rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                  >
-                    ✏️ Editar Dados
-                  </button>
+                  {isEditMode ? (
+                    <button
+                      type="button"
+                      className="primary-button"
+                      onClick={handleSaveData}
+                      style={{ padding: '0.5rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                    >
+                      💾 Salvar dados
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="primary-button"
+                      onClick={handleEditData}
+                      style={{ padding: '0.5rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                    >
+                      ✏️ Editar Dados
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -1550,7 +2157,7 @@ function ExportPage({ laudosValidados }) {
   )
 }
 
-function HistoryReportsPage() {
+function HistoryReportsPage({ laudos: historyLaudos = [], setLaudos: setHistoryLaudos }) {
   const [filters, setFilters] = useState({
     numeroDocumento: '',
     endereco: '',
@@ -1561,48 +2168,12 @@ function HistoryReportsPage() {
   const [exportFormat, setExportFormat] = useState('')
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [laudoToDelete, setLaudoToDelete] = useState(null)
-  const [laudos, setLaudos] = useState([
-    {
-      id: 1,
-      numero: 'LA 000 SAD/001',
-      endereco: 'Rua das Flores, 123',
-      coordenadaS: "0°00'00.0\"S",
-      coordenadaW: "0°00'00.0\"W",
-      estadoConservacao: 'Bom',
-      valor: 'R$ 250.000,00',
-      dataExtracao: '15/07/2025',
-    },
-    {
-      id: 2,
-      numero: 'LA 000 SAD/002',
-      endereco: 'Av. Principal, 456',
-      coordenadaS: "0°00'00.0\"S",
-      coordenadaW: "0°00'00.0\"W",
-      estadoConservacao: 'Regular',
-      valor: 'R$ 180.000,00',
-      dataExtracao: '16/07/2025',
-    },
-    {
-      id: 3,
-      numero: 'LA 000 SAD/003',
-      endereco: 'Rua Central, 789',
-      coordenadaS: "0°00'00.0\"S",
-      coordenadaW: "0°00'00.0\"W",
-      estadoConservacao: 'Bom',
-      valor: 'R$ 320.000,00',
-      dataExtracao: '17/07/2025',
-    },
-    {
-      id: 4,
-      numero: 'LA 000 SAD/004',
-      endereco: 'Praça da República, 321',
-      coordenadaS: "0°00'00.0\"S",
-      coordenadaW: "0°00'00.0\"W",
-      estadoConservacao: 'Ruim',
-      valor: 'R$ 150.000,00',
-      dataExtracao: '18/07/2025',
-    },
-  ])
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
+  const [selectedLaudoDetails, setSelectedLaudoDetails] = useState(null)
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [editedData, setEditedData] = useState(null)
+  const laudos = historyLaudos
+  const setLaudos = setHistoryLaudos
 
   const handleFilterChange = (field, value) => {
     setFilters((prev) => ({ ...prev, [field]: value }))
@@ -1660,6 +2231,41 @@ function HistoryReportsPage() {
     // TODO: Integrar com backend - exportar laudos
     // exportLaudos(selectedLaudos, exportFormat)
     console.log('Exportar laudos:', selectedLaudos, exportFormat)
+  }
+
+  const handleOpenDetails = (laudo) => {
+    setSelectedLaudoDetails(laudo)
+    setEditedData({ ...laudo })
+    setIsEditMode(false)
+    setShowDetailsModal(true)
+  }
+
+  const handleCloseDetails = () => {
+    setShowDetailsModal(false)
+    setSelectedLaudoDetails(null)
+    setIsEditMode(false)
+    setEditedData(null)
+  }
+
+  const handleEditData = () => {
+    setIsEditMode(true)
+  }
+
+  const handleFieldChange = (field, value) => {
+    setEditedData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleSaveData = () => {
+    if (editedData && selectedLaudoDetails) {
+      // Update the laudo in the history list
+      setLaudos((prev) =>
+        prev.map((l) => (l.id === selectedLaudoDetails.id ? { ...editedData } : l))
+      )
+      // Update the selected laudo details to show the new data
+      setSelectedLaudoDetails({ ...editedData })
+      // Exit edit mode
+      setIsEditMode(false)
+    }
   }
 
   const getStatusColor = (estado) => {
@@ -1775,7 +2381,14 @@ function HistoryReportsPage() {
                         checked={selectedLaudos.includes(laudo.id)}
                         onChange={() => handleSelectLaudo(laudo.id)}
                       />
-                      <span className="laudo-link">{laudo.numero} 👁</span>
+                      <span 
+                        className="file-link" 
+                        onClick={() => handleOpenDetails(laudo)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {laudo.numero}
+                        <span className="file-link-icon">👁</span>
+                      </span>
                     </td>
                     <td>{laudo.endereco}</td>
                     <td>{laudo.coordenadaS}</td>
@@ -1879,6 +2492,504 @@ function HistoryReportsPage() {
                 >
                   Excluir
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Detalhes do Laudo */}
+      {showDetailsModal && selectedLaudoDetails && (
+        <div className="modal-overlay" onClick={handleCloseDetails} style={{ zIndex: 1000 }}>
+          <div 
+            className="modal-content" 
+            onClick={(e) => e.stopPropagation()}
+            style={{ 
+              maxWidth: '90%', 
+              width: '900px', 
+              maxHeight: '90vh', 
+              overflowY: 'auto',
+              padding: '0'
+            }}
+          >
+            <div style={{ padding: '2rem', borderBottom: '1px solid #e5e7eb' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '600' }}>
+                  Detalhes do Laudo {selectedLaudoDetails.numero || `LA 000 SAD/${selectedLaudoDetails.id.toString().padStart(3, '0')}`}
+                </h2>
+                <button
+                  type="button"
+                  className="modal-close"
+                  onClick={handleCloseDetails}
+                  style={{ fontSize: '1.5rem', background: 'none', border: 'none', cursor: 'pointer' }}
+                >
+                  ×
+                </button>
+              </div>
+              <p style={{ margin: 0, color: '#6b7280', fontSize: '0.875rem' }}>
+                Informações completas extraídas do documento
+              </p>
+            </div>
+
+            <div style={{ padding: '2rem' }}>
+              {/* Dados sobre Localização do Imóvel */}
+              <div style={{ marginBottom: '2rem' }}>
+                <h3 style={{ marginBottom: '1rem', fontSize: '1.125rem', fontWeight: '600', color: '#111827' }}>
+                  Dados sobre Localização do Imóvel
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Endereço
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.endereco || '') : (selectedLaudoDetails?.endereco || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('endereco', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Número
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.numero || '') : (selectedLaudoDetails?.numero || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('numero', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Complemento
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.complemento || '') : (selectedLaudoDetails?.complemento || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('complemento', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Bairro
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.bairro || '') : (selectedLaudoDetails?.bairro || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('bairro', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      CEP
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.cep || '') : (selectedLaudoDetails?.cep || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('cep', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      País
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.pais || '') : (selectedLaudoDetails?.pais || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('pais', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Estado
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.estado || '') : (selectedLaudoDetails?.estado || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('estado', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Cidade/Município
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.cidade || '') : (selectedLaudoDetails?.cidade || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('cidade', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Região
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.regiao || '') : (selectedLaudoDetails?.regiao || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('regiao', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Confrontante frente
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.confrontanteFrente || '') : (selectedLaudoDetails?.confrontanteFrente || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('confrontanteFrente', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Confrontante fundo
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.confrontanteFundo || '') : (selectedLaudoDetails?.confrontanteFundo || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('confrontanteFundo', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Confrontante L. direita
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.confrontanteDireita || '') : (selectedLaudoDetails?.confrontanteDireita || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('confrontanteDireita', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Confrontante L. esquerda
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.confrontanteEsquerda || '') : (selectedLaudoDetails?.confrontanteEsquerda || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('confrontanteEsquerda', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Ponto de referência
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.pontoReferencia || '') : (selectedLaudoDetails?.pontoReferencia || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('pontoReferencia', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Observação
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.observacaoLocalizacao || '') : (selectedLaudoDetails?.observacaoLocalizacao || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('observacaoLocalizacao', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Coordenada geográfica S
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.coordenadaS || '') : (selectedLaudoDetails?.coordenadaS || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('coordenadaS', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Coordenada geográfica W
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.coordenadaW || '') : (selectedLaudoDetails?.coordenadaW || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('coordenadaW', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Características do Imóvel */}
+              <div style={{ marginBottom: '2rem' }}>
+                <h3 style={{ marginBottom: '1rem', fontSize: '1.125rem', fontWeight: '600', color: '#111827' }}>
+                  Características do Imóvel
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Área do terreno
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.areaTerreno || '') : (selectedLaudoDetails?.areaTerreno || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('areaTerreno', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Área construída
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.areaConstruida || '') : (selectedLaudoDetails?.areaConstruida || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('areaConstruida', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Unidade de medida
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.unidadeMedida || '') : (selectedLaudoDetails?.unidadeMedida || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('unidadeMedida', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Estado de conservação
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.estadoConservacao || '') : (selectedLaudoDetails?.estadoConservacao || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('estadoConservacao', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Limitação administrativa
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.limitacaoAdministrativa || '') : (selectedLaudoDetails?.limitacaoAdministrativa || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('limitacaoAdministrativa', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Dados Financeiros */}
+              <div style={{ marginBottom: '2rem' }}>
+                <h3 style={{ marginBottom: '1rem', fontSize: '1.125rem', fontWeight: '600', color: '#111827' }}>
+                  Dados Financeiros
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Critério de valoração
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.criterioValoracao || '') : (selectedLaudoDetails?.criterioValoracao || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('criterioValoracao', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Data da valoração
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.dataValoracao || '') : (selectedLaudoDetails?.dataValoracao || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('dataValoracao', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Nº do documento
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.numeroDocumento || '') : (selectedLaudoDetails?.numeroDocumento || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('numeroDocumento', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Valor da construção nova
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.valorConstrucaoNova || '') : (selectedLaudoDetails?.valorConstrucaoNova || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('valorConstrucaoNova', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Valor da área construída
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.valorAreaConstruida || '') : (selectedLaudoDetails?.valorAreaConstruida || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('valorAreaConstruida', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Valor do terreno
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.valorTerreno || '') : (selectedLaudoDetails?.valorTerreno || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('valorTerreno', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Valor total
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.valorTotal || editedData?.valor || '') : (selectedLaudoDetails?.valorTotal || selectedLaudoDetails?.valor || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('valorTotal', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                      Observação
+                    </label>
+                    <input 
+                      type="text" 
+                      value={isEditMode ? (editedData?.observacaoFinanceira || '') : (selectedLaudoDetails?.observacaoFinanceira || 'Não encontrado')} 
+                      readOnly={!isEditMode}
+                      onChange={(e) => isEditMode && handleFieldChange('observacaoFinanceira', e.target.value)}
+                      className="field-input rectangular"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Rodapé do Modal */}
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                marginTop: '2rem',
+                paddingTop: '1rem',
+                borderTop: '1px solid #e5e7eb'
+              }}>
+                <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                  *Dados editados pelo usuário
+                </span>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button
+                    type="button"
+                    className="primary-button"
+                    onClick={handleCloseDetails}
+                    style={{ padding: '0.5rem 1.5rem' }}
+                  >
+                    Voltar
+                  </button>
+                  {isEditMode ? (
+                    <button
+                      type="button"
+                      className="primary-button"
+                      onClick={handleSaveData}
+                      style={{ padding: '0.5rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                    >
+                      💾 Salvar dados
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="primary-button"
+                      onClick={handleEditData}
+                      style={{ padding: '0.5rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                    >
+                      ✏️ Editar Dados
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -2209,6 +3320,8 @@ function ConfigPage() {
   const [showInativarModal, setShowInativarModal] = useState(false)
   const [showReenviarModal, setShowReenviarModal] = useState(false)
   const [showSuccessNotification, setShowSuccessNotification] = useState(false)
+  const [notificationMessage, setNotificationMessage] = useState('')
+  const [notificationType, setNotificationType] = useState('success') // 'success' or 'error'
   const [editingUser, setEditingUser] = useState(null)
   const [userToAction, setUserToAction] = useState(null)
   const [editForm, setEditForm] = useState({
@@ -2260,6 +3373,8 @@ function ConfigPage() {
       ...users,
     ])
     setNewUser({ nome: '', email: '', funcao: '' })
+    setNotificationMessage('Usuário criado')
+    setNotificationType('success')
     setShowSuccessNotification(true)
     setTimeout(() => {
       setShowSuccessNotification(false)
@@ -2275,6 +3390,12 @@ function ConfigPage() {
   const confirmInativar = () => {
     if (userToAction) {
       setUsers((prev) => prev.filter((u) => u.id !== userToAction.id))
+      setNotificationMessage(`Usuário ${userToAction.nome} Inativo`)
+      setNotificationType('error')
+      setShowSuccessNotification(true)
+      setTimeout(() => {
+        setShowSuccessNotification(false)
+      }, 3000)
     }
     setShowInativarModal(false)
     setUserToAction(null)
@@ -2309,6 +3430,12 @@ function ConfigPage() {
             : u
         )
       )
+      setNotificationMessage(`Usuário ${editForm.nome} editado`)
+      setNotificationType('success')
+      setShowSuccessNotification(true)
+      setTimeout(() => {
+        setShowSuccessNotification(false)
+      }, 3000)
     }
     setShowEditModal(false)
     setEditingUser(null)
@@ -2332,6 +3459,12 @@ function ConfigPage() {
   const confirmReenviar = () => {
     // TODO: Integrar com backend - reenviar email
     console.log('Reenviar email para usuário:', userToAction?.id)
+    setNotificationMessage('E-mail reenviado com sucesso')
+    setNotificationType('success')
+    setShowSuccessNotification(true)
+    setTimeout(() => {
+      setShowSuccessNotification(false)
+    }, 3000)
     setShowReenviarModal(false)
     setUserToAction(null)
   }
@@ -2354,9 +3487,9 @@ function ConfigPage() {
         </header>
 
         {showSuccessNotification && (
-          <div className="success-notification">
-            <div className="success-notification-icon">✓</div>
-            <span>Usuário criado</span>
+          <div className={notificationType === 'error' ? 'error-notification' : 'success-notification'}>
+            <div className={notificationType === 'error' ? 'error-notification-icon' : 'success-notification-icon'}>✓</div>
+            <span>{notificationMessage}</span>
           </div>
         )}
 
@@ -2648,6 +3781,48 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [laudos, setLaudos] = useState([])
   const [laudosValidados, setLaudosValidados] = useState([])
+  const [historyLaudos, setHistoryLaudos] = useState([
+    {
+      id: 1,
+      numero: 'LA 000 SAD/001',
+      endereco: 'Rua das Flores, 123',
+      coordenadaS: "0°00'00.0\"S",
+      coordenadaW: "0°00'00.0\"W",
+      estadoConservacao: 'Bom',
+      valor: 'R$ 250.000,00',
+      dataExtracao: '15/07/2025',
+    },
+    {
+      id: 2,
+      numero: 'LA 000 SAD/002',
+      endereco: 'Av. Principal, 456',
+      coordenadaS: "0°00'00.0\"S",
+      coordenadaW: "0°00'00.0\"W",
+      estadoConservacao: 'Regular',
+      valor: 'R$ 180.000,00',
+      dataExtracao: '16/07/2025',
+    },
+    {
+      id: 3,
+      numero: 'LA 000 SAD/003',
+      endereco: 'Rua Central, 789',
+      coordenadaS: "0°00'00.0\"S",
+      coordenadaW: "0°00'00.0\"W",
+      estadoConservacao: 'Bom',
+      valor: 'R$ 320.000,00',
+      dataExtracao: '17/07/2025',
+    },
+    {
+      id: 4,
+      numero: 'LA 000 SAD/004',
+      endereco: 'Praça da República, 321',
+      coordenadaS: "0°00'00.0\"S",
+      coordenadaW: "0°00'00.0\"W",
+      estadoConservacao: 'Ruim',
+      valor: 'R$ 150.000,00',
+      dataExtracao: '18/07/2025',
+    },
+  ])
   const [darkMode, setDarkMode] = useState(() => {
     if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
       return true
@@ -2664,6 +3839,49 @@ function App() {
       setLaudosValidados(data)
     }
     setActivePage(page)
+  }
+
+  const handleAddToHistory = (laudosToAdd) => {
+    // Transform laudos from EditDataPage format to HistoryReportsPage format
+    const formattedLaudos = laudosToAdd.map((laudo) => {
+      // Build endereco string from available fields
+      let enderecoStr = laudo.endereco || ''
+      if (laudo.numeroEndereco) {
+        enderecoStr += enderecoStr ? `, ${laudo.numeroEndereco}` : laudo.numeroEndereco
+      }
+      if (laudo.bairro) {
+        enderecoStr += enderecoStr ? `, ${laudo.bairro}` : laudo.bairro
+      }
+      
+      // Get estadoConservacao, defaulting to a simple value if it's too long
+      let estadoConservacao = laudo.estadoConservacao || 'Bom'
+      if (estadoConservacao && estadoConservacao.length > 20) {
+        // Extract first word or use default
+        const firstWord = estadoConservacao.split(' ')[0]
+        estadoConservacao = firstWord || 'Bom'
+      }
+      // Normalize common values
+      if (estadoConservacao && estadoConservacao.toLowerCase().includes('bom')) {
+        estadoConservacao = 'Bom'
+      } else if (estadoConservacao && estadoConservacao.toLowerCase().includes('regular')) {
+        estadoConservacao = 'Regular'
+      } else if (estadoConservacao && estadoConservacao.toLowerCase().includes('ruim')) {
+        estadoConservacao = 'Ruim'
+      }
+      
+      return {
+        id: laudo.id || Date.now() + Math.random(),
+        numero: laudo.numero || `LA 000 SAD/${String(laudo.id || Date.now()).slice(-3).padStart(3, '0')}`,
+        endereco: enderecoStr || 'Endereço não informado',
+        coordenadaS: laudo.coordenadaS || "0°00'00.0\"S",
+        coordenadaW: laudo.coordenadaW || "0°00'00.0\"W",
+        estadoConservacao: estadoConservacao,
+        valor: laudo.valorTotal || laudo.valor || 'R$ 0,00',
+        dataExtracao: new Date().toLocaleDateString('pt-BR'),
+      }
+    })
+    
+    setHistoryLaudos((prev) => [...formattedLaudos, ...prev])
   }
 
   const handleLogin = (user) => {
@@ -2697,10 +3915,10 @@ function App() {
   let pageContent = null
 
   if (activePage === PAGES.UPLOAD) pageContent = <UploadPage onNavigate={setActivePage} onAddLaudos={handleAddLaudos} />
-  else if (activePage === PAGES.EDIT) pageContent = <EditDataPage onNavigate={handleNavigate} laudos={laudos} setLaudos={setLaudos} />
+  else if (activePage === PAGES.EDIT) pageContent = <EditDataPage onNavigate={handleNavigate} laudos={laudos} setLaudos={setLaudos} onAddToHistory={handleAddToHistory} />
   else if (activePage === PAGES.EXPORT) pageContent = <ExportPage laudosValidados={laudosValidados} />
   else if (activePage === PAGES.HISTORY_REPORTS)
-    pageContent = <HistoryReportsPage />
+    pageContent = <HistoryReportsPage laudos={historyLaudos} setLaudos={setHistoryLaudos} />
   else if (activePage === PAGES.HISTORY_USERS)
     pageContent = <HistoryUsersPage />
   else if (activePage === PAGES.INDICATORS)
