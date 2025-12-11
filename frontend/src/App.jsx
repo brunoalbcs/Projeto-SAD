@@ -314,6 +314,8 @@ function UploadPage({ onNavigate, onAddLaudos }) {
       // uploadFiles(selectedFiles)
       // Processar arquivos e criar laudos
       const novosLaudos = selectedFiles.map((file, index) => {
+        // Criar uma URL local para visualizar o PDF posteriormente
+        const fileUrl = URL.createObjectURL(file)
         // Gerar dados mockados para cada arquivo
         // Em produção, isso viria do backend após processar o arquivo
         const total = Math.floor(Math.random() * 20) + 20 // 20-40 campos
@@ -334,6 +336,7 @@ function UploadPage({ onNavigate, onAddLaudos }) {
           id: Date.now() + index, // ID único baseado em timestamp
           nome: file.name,
           numero: `LA 000 SAD/${String(Date.now() + index).slice(-3).padStart(3, '0')}`,
+          fileUrl,
           extraidos: extraidos,
           total: total,
           confiabilidade: confiabilidade,
@@ -901,6 +904,19 @@ function EditDataPage({ onNavigate, laudos, setLaudos, onAddToHistory }) {
             </div>
 
             <div style={{ padding: '2rem' }}>
+              <div className={isEditMode && selectedLaudoDetails?.fileUrl ? 'split-details-layout' : ''}>
+                {isEditMode && selectedLaudoDetails?.fileUrl && (
+                  <div className="split-details-left">
+                    <object
+                      data={selectedLaudoDetails.fileUrl}
+                      type="application/pdf"
+                      className="pdf-viewer-frame"
+                    >
+                      Seu navegador não consegue exibir o PDF. Baixe o arquivo para visualizá-lo.
+                    </object>
+                  </div>
+                )}
+                <div className={isEditMode && selectedLaudoDetails?.fileUrl ? 'split-details-right' : ''}>
               {/* Dados sobre Localização do Imóvel */}
               <div style={{ marginBottom: '2rem' }}>
                 <h3 style={{ marginBottom: '1rem', fontSize: '1.125rem', fontWeight: '600', color: '#111827' }}>
@@ -1361,6 +1377,8 @@ function EditDataPage({ onNavigate, laudos, setLaudos, onAddToHistory }) {
                 </div>
               </div>
             </div>
+                </div>
+              </div>
           </div>
         </div>
       )}
@@ -3872,6 +3890,7 @@ function App() {
       return {
         id: laudo.id || Date.now() + Math.random(),
         numero: laudo.numero || `LA 000 SAD/${String(laudo.id || Date.now()).slice(-3).padStart(3, '0')}`,
+        fileUrl: laudo.fileUrl || null,
         endereco: enderecoStr || 'Endereço não informado',
         coordenadaS: laudo.coordenadaS || "0°00'00.0\"S",
         coordenadaW: laudo.coordenadaW || "0°00'00.0\"W",
